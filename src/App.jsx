@@ -318,50 +318,37 @@ export default function KarateTournamentBracket() {
 function BracketDisplay({ competitorCount, bracketData }) {
   const { rounds, totalSlots, matches } = bracketData;
   
-  // Generate a multi-round bracket layout with improved connector lines
+  // Generate bracket with a simpler reliable layout
   const renderBracket = () => {
-    const bracketJSX = [];
+    const bracketRounds = [];
     
-    // Optimize dimensions for print and smaller file size
-    const matchWidth = 140; // Numeric value for calculations
-    const matchHeight = 55;
-    const connectorWidth = 30; // Increased connector width for better spacing
-    const baseSpacing = 20; // Base spacing between matches
+    // Fixed dimensions for matches and spacing
+    const matchWidth = 180;
+    const matchHeight = 60;
+    const hSpacing = 60; // Horizontal spacing between rounds
+    const matchMargin = 20; // Initial vertical margin between matches
     
-    // Render each round
+    // Process each round
     for (let round = 0; round < rounds; round++) {
       const matchesInRound = totalSlots / Math.pow(2, round + 1);
-      const matchesJSX = [];
+      const matchesInThisRound = [];
       
-      // Calculate spacing between matches for this round
-      // Spacing doubles with each round to accommodate connector lines
-      const spacingMultiplier = Math.pow(2, round);
-      const matchSpacing = baseSpacing * spacingMultiplier;
+      // Calculate vertical margin that doubles with each round
+      const vMargin = matchMargin * Math.pow(2, round);
       
-      // Calculate match wrapper height for proper connector positioning
-      const matchWrapperHeight = matchHeight + matchSpacing;
-      
-      // For the first round, use the matches data to show byes
-      if (round === 0) {
-        matches.forEach((match, idx) => {
-          matchesJSX.push(
-            <div
-              key={`r0-m${idx}`}
-              className={`match ${match.hasBye ? 'has-bye' : ''}`}
-              style={{
-                marginBottom: `${matchSpacing}px`,
-                position: 'relative',
-                height: `${matchHeight}px`,
-              }}
+      // Generate match entries for this round
+      for (let i = 0; i < matchesInRound; i++) {
+        if (round === 0) {
+          // First round uses match data to display byes
+          const match = matches[i];
+          matchesInThisRound.push(
+            <div 
+              key={`r${round}-m${i}`} 
+              className="match relative"
+              style={{ marginBottom: i < matchesInRound - 1 ? vMargin : 0 }}
             >
-              <div className="match-box border rounded-md flex flex-col justify-center p-1"
-                style={{
-                  width: `${matchWidth}px`,
-                  height: `${matchHeight}px`,
-                  position: 'absolute',
-                  left: 0,
-                  top: 0
-                }}
+              <div className="match-box border rounded-md p-2 bg-white shadow-sm" 
+                style={{ width: matchWidth, height: matchHeight }}
               >
                 <div className="competitor-slot border-b p-1">
                   <div className="competitor-name text-sm">
@@ -375,48 +362,29 @@ function BracketDisplay({ competitorCount, bracketData }) {
                 </div>
               </div>
               
-              {/* Horizontal Connector Line */}
+              {/* Connector line to next round */}
               {round < rounds - 1 && (
-                <div className="connector-horizontal" style={{
+                <div className="h-connector" style={{ 
                   position: 'absolute',
-                  left: `${matchWidth}px`,
-                  top: `${matchHeight / 2}px`,
-                  width: `${connectorWidth}px`,
                   height: '2px',
-                  backgroundColor: '#ccc'
+                  backgroundColor: '#666',
+                  width: hSpacing,
+                  top: matchHeight / 2,
+                  left: matchWidth
                 }}></div>
               )}
             </div>
           );
-        });
-      } else {
-        // Render later rounds
-        for (let i = 0; i < matchesInRound; i++) {
-          // Calculate the spacing to center each match between its "children" matches
-          const previousRoundMatches = Math.pow(2, round);
-          const verticalPosition = i * matchWrapperHeight * 2 + matchHeight / 2;
-          
-          matchesJSX.push(
-            <div
-              key={`r${round}-m${i}`}
-              className="match"
-              style={{
-                position: 'absolute',
-                top: `${verticalPosition - matchHeight / 2}px`,
-                left: `${round * (matchWidth + connectorWidth)}px`,
-                height: `${matchHeight}px`,
-                width: `${matchWidth + connectorWidth}px`,
-                zIndex: "1" // Ensure match is above connector lines
-              }}
+        } else {
+          // Later rounds
+          matchesInThisRound.push(
+            <div 
+              key={`r${round}-m${i}`} 
+              className="match relative"
+              style={{ marginBottom: i < matchesInRound - 1 ? vMargin * 2 + matchHeight : 0 }}
             >
-              <div className="match-box border rounded-md flex flex-col justify-center p-1"
-                style={{
-                  width: `${matchWidth}px`,
-                  height: `${matchHeight}px`,
-                  position: 'absolute',
-                  left: 0,
-                  top: 0
-                }}
+              <div className="match-box border rounded-md p-2 bg-white shadow-sm" 
+                style={{ width: matchWidth, height: matchHeight }}
               >
                 <div className="competitor-slot border-b p-1">
                   <div className="competitor-name text-sm">_________________</div>
@@ -426,74 +394,76 @@ function BracketDisplay({ competitorCount, bracketData }) {
                 </div>
               </div>
               
-              {/* Horizontal Connector Line (except for the final match) */}
+              {/* Connector to next round */}
               {round < rounds - 1 && (
-                <div className="connector-horizontal" style={{
+                <div className="h-connector" style={{ 
                   position: 'absolute',
-                  left: `${matchWidth}px`,
-                  top: `${matchHeight / 2}px`,
-                  width: `${connectorWidth}px`,
                   height: '2px',
-                  backgroundColor: '#ccc'
+                  backgroundColor: '#666',
+                  width: hSpacing,
+                  top: matchHeight / 2,
+                  left: matchWidth
                 }}></div>
               )}
               
-              {/* Vertical Connector Lines from previous round (except for the first round) */}
+              {/* Vertical connectors from previous round */}
               {round > 0 && (
-                <>
-                  {/* Vertical connector from previous matches */}
-                  <div className="connector-vertical" style={{
+                <div className="v-connector-wrapper" style={{ position: 'absolute', left: -hSpacing, top: 0 }}>
+                  <div className="v-connector-top" style={{ 
                     position: 'absolute',
-                    left: `-${connectorWidth / 2}px`,
-                    top: `-${matchWrapperHeight / 2}px`, // Connect from above
                     width: '2px',
-                    height: `${matchWrapperHeight}px`,
-                    backgroundColor: '#ccc',
-                    zIndex: "0"
+                    backgroundColor: '#666',
+                    height: matchHeight / 2,
+                    top: -vMargin / 2,
+                    left: hSpacing / 2
                   }}></div>
-                </>
+                  <div className="v-connector-bottom" style={{ 
+                    position: 'absolute',
+                    width: '2px',
+                    backgroundColor: '#666',
+                    height: matchHeight / 2,
+                    top: matchHeight / 2,
+                    left: hSpacing / 2
+                  }}></div>
+                  <div className="v-connector-horizontal" style={{ 
+                    position: 'absolute',
+                    height: '2px',
+                    backgroundColor: '#666',
+                    width: hSpacing / 2,
+                    top: matchHeight / 2,
+                    left: hSpacing / 2
+                  }}></div>
+                </div>
               )}
             </div>
           );
         }
       }
       
-      // Create a round column with absolute positioning for better alignment
-      bracketJSX.push(
-        <div
-          key={`round-${round}`}
-          className="round-column"
-          style={{
-            position: 'relative',
-            minWidth: `${matchWidth + connectorWidth}px`,
-            marginRight: round === rounds - 1 ? 0 : `${connectorWidth}px`,
-            height: `${matchesInRound * matchWrapperHeight * 2}px`
-          }}
-        >
+      // Add the round to our bracket
+      bracketRounds.push(
+        <div key={`round-${round}`} className="round-column flex flex-col mr-6">
           <div className="round-header text-center font-semibold mb-4">
-            {round === 0 ? "First Round" :
-             round === rounds - 1 ? "Final" :
+            {round === 0 ? "First Round" : 
+             round === rounds - 1 ? "Final" : 
              `Round ${round + 1}`}
           </div>
-          <div className="matches">
-            {matchesJSX}
+          <div className="matches flex flex-col justify-start">
+            {matchesInThisRound}
           </div>
         </div>
       );
     }
     
     return (
-      <div className="bracket-container flex flex-nowrap overflow-x-auto pb-6 pt-10" style={{
-        position: 'relative',
-        minHeight: '300px' // Ensure minimum height for smaller tournaments
-      }}>
-        {bracketJSX}
+      <div className="bracket-container flex overflow-x-auto py-6">
+        {bracketRounds}
       </div>
     );
   };
   
   return (
-    <div className="bracket-wrapper mt-8 mb-8 overflow-x-auto">
+    <div className="bracket-wrapper">
       <div className="mb-3 text-center">
         <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
         <p className="text-sm text-gray-600 print:text-gray-800">
@@ -501,9 +471,7 @@ function BracketDisplay({ competitorCount, bracketData }) {
         </p>
       </div>
       
-      <div className="bracket-wrapper overflow-x-auto">
-        {renderBracket()}
-      </div>
+      {renderBracket()}
       
       <div className="mt-4 print:mt-8">
         <p className="text-xs text-gray-500 print:text-gray-700">
