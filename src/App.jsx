@@ -25,8 +25,7 @@ export default function KarateTournamentBracket() {
       flowchart: {
         useMaxWidth: false,
         htmlLabels: true,
-        curve: 'basis',
-        defaultRenderer: 'dagre-d3'
+        curve: 'basis'
       },
       securityLevel: 'loose',
       themeCSS: `
@@ -151,9 +150,9 @@ export default function KarateTournamentBracket() {
         diagram += `${matchId(r, m)}["Winner ${m*2+1}<hr/>Winner ${m*2+2}"]\n`;
         diagram += `${matchId(r, m)}:::match\n`;
         
-        // Connect to previous round matches with 90-degree angles
-        diagram += `${matchId(r-1, m*2)} -- "" --> ${matchId(r, m)}\n`;
-        diagram += `${matchId(r-1, m*2+1)} -- "" --> ${matchId(r, m)}\n`;
+        // Connect to previous round matches using simple syntax
+        diagram += `${matchId(r-1, m*2)} --> ${matchId(r, m)}\n`;
+        diagram += `${matchId(r-1, m*2+1)} --> ${matchId(r, m)}\n`;
       }
     }
     
