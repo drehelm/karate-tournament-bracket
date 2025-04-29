@@ -13,31 +13,67 @@ export default function KarateTournamentBracket() {
   const [isExporting, setIsExporting] = useState(false);
   const [paperSize, setPaperSize] = useState('letter'); // 'letter' or 'a4'
   const [bracketOrientation, setBracketOrientation] = useState('landscape'); // 'portrait' or 'landscape'
+  const [mermaidSvgId, setMermaidSvgId] = useState('bracket-diagram');
   const bracketRef = useRef(null);
   const mermaidRef = useRef(null);
 
   // Initialize mermaid when component mounts
   useEffect(() => {
     mermaid.initialize({
-      startOnLoad: true,
+      startOnLoad: false,
       theme: 'default',
       flowchart: {
         useMaxWidth: false,
         htmlLabels: true,
-        curve: 'linear', // Use straight lines
+        curve: 'basis',
+        defaultRenderer: 'dagre-d3'
       },
       securityLevel: 'loose',
+      themeCSS: `
+        .node rect { 
+          fill: #f9f9f9; 
+          stroke: #333; 
+          stroke-width: 1px; 
+          rx: 5px; 
+          ry: 5px; 
+        }
+        .node.bye rect { 
+          fill: #f0f0f0; 
+          stroke: #999; 
+          stroke-width: 1px; 
+          stroke-dasharray: 3,3; 
+        }
+        .edgePath .path { 
+          stroke: #333; 
+          stroke-width: 1.5px; 
+        }
+        .edgePath .arrowheadPath { 
+          fill: #333; 
+          stroke: none; 
+        }
+      `
     });
   }, []);
 
   // Render mermaid diagram when bracket is generated
   useEffect(() => {
     if (bracketGenerated && mermaidRef.current) {
-      const mermaidDiagram = generateMermaidDiagram();
-      mermaidRef.current.innerHTML = mermaidDiagram;
-      mermaid.init(undefined, mermaidRef.current);
+      try {
+        const mermaidDiagram = generateMermaidDiagram();
+        console.log("Mermaid diagram syntax:", mermaidDiagram);
+        
+        mermaidRef.current.innerHTML = mermaidDiagram;
+        mermaid.render(mermaidSvgId, mermaidDiagram).then(({ svg }) => {
+          mermaidRef.current.innerHTML = svg;
+        }).catch(err => {
+          console.error("Mermaid rendering error:", err);
+          mermaidRef.current.innerHTML = `<div class="error p-4 bg-red-100 text-red-800 rounded">Error rendering tournament bracket: ${err.message}</div>`;
+        });
+      } catch (error) {
+        console.error("Error generating diagram:", error);
+      }
     }
-  }, [bracketGenerated, competitorCount]);
+  }, [bracketGenerated, competitorCount, mermaidSvgId]);
 
   // Calculate the total slots needed (next power of 2)
   const calculateTotalSlots = (count) => {
@@ -98,7 +134,7 @@ export default function KarateTournamentBracket() {
     for (let i = 0; i < totalSlots / 2; i++) {
       const hasBye = matches[i]?.hasBye;
       if (hasBye) {
-        diagram += `${matchId(0, i)}["BYE"]\n`;
+        diagram += `${matchId(0, i)}["BYE<hr/>Competitor ${i+1}"]\n`;
         diagram += `${matchId(0, i)}:::bye\n`;
       } else {
         diagram += `${matchId(0, i)}["Competitor ${i*2+1}<hr/>Competitor ${i*2+2}"]\n`;
@@ -115,13 +151,12 @@ export default function KarateTournamentBracket() {
         diagram += `${matchId(r, m)}["Winner ${m*2+1}<hr/>Winner ${m*2+2}"]\n`;
         diagram += `${matchId(r, m)}:::match\n`;
         
-        // Connect to previous round matches
-        diagram += `${matchId(r-1, m*2)} --> ${matchId(r, m)}\n`;
-        diagram += `${matchId(r-1, m*2+1)} --> ${matchId(r, m)}\n`;
+        // Connect to previous round matches with 90-degree angles
+        diagram += `${matchId(r-1, m*2)} -- "" --> ${matchId(r, m)}\n`;
+        diagram += `${matchId(r-1, m*2+1)} -- "" --> ${matchId(r, m)}\n`;
       }
     }
     
-    // Set orientation to left-to-right and use straight lines with 90-degree angles
     return diagram;
   };
 
@@ -197,6 +232,13 @@ export default function KarateTournamentBracket() {
     }
   };
 
+  // Generate a new mermaid svg id when regenerating the bracket
+  const handleGenerateBracket = () => {
+    // Create a unique ID for the mermaid diagram to ensure re-rendering
+    setMermaidSvgId(`bracket-diagram-${Date.now()}`);
+    setBracketGenerated(true);
+  };
+
   return (
     <div className="p-4 space-y-4 max-w-full mx-auto print:p-0">
       <h1 className="text-2xl font-bold text-center print:text-3xl">
@@ -232,7 +274,7 @@ export default function KarateTournamentBracket() {
               </Button>
               
               <Button
-                onClick={() => setBracketGenerated(true)}
+                onClick={handleGenerateBracket}
                 className="bg-blue-500 text-white"
               >
                 Generate Bracket
@@ -286,16 +328,17 @@ export default function KarateTournamentBracket() {
             </div>
             
             {/* Mermaid diagram container */}
-            <div 
-              ref={mermaidRef} 
-              className="mermaid tournament-bracket" 
-              style={{ 
-                width: '100%',
-                minHeight: '300px',
-                overflowX: 'auto'
-              }}
-            >
-              {/* Mermaid diagram will be rendered here */}
+            <div className="tournament-bracket-container overflow-auto">
+              <div 
+                ref={mermaidRef} 
+                className="mermaid tournament-bracket mx-auto"
+                style={{ 
+                  minHeight: '300px',
+                  width: '100%'
+                }}
+              >
+                {/* Mermaid diagram will be rendered here */}
+              </div>
             </div>
             
             <div className="mt-8 border-t pt-4">
