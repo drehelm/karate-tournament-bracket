@@ -352,14 +352,14 @@ function BracketDisplay({ competitorCount, bracketData }) {
           border-radius: 4px;
         }
         
-        .match-container {
-          flex: 1;
+        .matches {
           position: relative;
+          height: 100%;
         }
         
         .match {
-          margin-bottom: 20px;
-          position: relative;
+          position: absolute;
+          width: 100%;
         }
         
         .match-box {
@@ -410,87 +410,111 @@ function BracketDisplay({ competitorCount, bracketData }) {
       `}</style>
       
       <div className="tournament-bracket">
-        {/* Render each round */}
-        {Array.from({ length: rounds }, (_, roundIndex) => {
-          const matchesInRound = totalSlots / Math.pow(2, roundIndex + 1);
-          const spacingFactor = Math.pow(2, roundIndex);
+        {/* Calculate total bracket height based on first round matches */}
+        {(() => {
+          // Base unit for match height + spacing
+          const matchHeight = 80;
+          // Total height needed for the bracket (based on first round)
+          const totalHeight = totalSlots / 2 * matchHeight;
           
           return (
-            <div className="round" key={`round-${roundIndex}`}>
-              <div className="round-title">
-                {roundIndex === 0 ? "First Round" : 
-                 roundIndex === rounds - 1 ? "Final" : 
-                 `Round ${roundIndex + 1}`}
-              </div>
+            Array.from({ length: rounds }, (_, roundIndex) => {
+              const matchesInRound = totalSlots / Math.pow(2, roundIndex + 1);
+              const matchSpacing = Math.pow(2, roundIndex) * matchHeight;
               
-              <div className="match-container">
-                {/* Render matches for this round */}
-                {Array.from({ length: matchesInRound }, (_, matchIndex) => {
-                  const hasBye = roundIndex === 0 && matches[matchIndex]?.hasBye;
-                  const matchSpacing = spacingFactor * 20; // Increased spacing for each round
+              return (
+                <div className="round" key={`round-${roundIndex}`}>
+                  <div className="round-title">
+                    {roundIndex === 0 ? "First Round" : 
+                     roundIndex === rounds - 1 ? "Final" : 
+                     `Round ${roundIndex + 1}`}
+                  </div>
                   
-                  return (
-                    <div 
-                      className="match" 
-                      key={`match-${roundIndex}-${matchIndex}`}
-                      style={{
-                        marginBottom: `${matchSpacing}px`
-                      }}
-                    >
-                      <div className="match-box">
-                        <div className="competitor">
-                          {hasBye ? "BYE" : "_________________"}
+                  <div className="matches" style={{ height: `${totalHeight}px` }}>
+                    {Array.from({ length: matchesInRound }, (_, matchIndex) => {
+                      const hasBye = roundIndex === 0 && matches[matchIndex]?.hasBye;
+                      
+                      // Calculate vertical position of match
+                      let verticalPosition;
+                      
+                      if (roundIndex === 0) {
+                        // First round matches have fixed spacing
+                        verticalPosition = matchIndex * matchHeight;
+                      } else {
+                        // For subsequent rounds, calculate position to center between parent matches
+                        const parentIndex1 = matchIndex * 2;
+                        const parentIndex2 = matchIndex * 2 + 1;
+                        const parentPosition1 = parentIndex1 * (matchHeight / Math.pow(2, roundIndex - 1));
+                        const parentPosition2 = parentIndex2 * (matchHeight / Math.pow(2, roundIndex - 1));
+                        
+                        // Center between the two parent matches
+                        verticalPosition = (parentPosition1 + parentPosition2) / 2 - 40;
+                      }
+                      
+                      return (
+                        <div 
+                          className="match" 
+                          key={`match-${roundIndex}-${matchIndex}`}
+                          style={{
+                            top: `${verticalPosition}px`
+                          }}
+                        >
+                          <div className="match-box">
+                            <div className="competitor">
+                              {hasBye ? "BYE" : "_________________"}
+                            </div>
+                            <div className="competitor">
+                              {"_________________"}
+                            </div>
+                          </div>
+                          
+                          {/* Connector to next round (except for final round) */}
+                          {roundIndex < rounds - 1 && (
+                            <div 
+                              className="connector connector-horizontal" 
+                              style={{
+                                position: 'absolute',
+                                right: '-8px',
+                                width: '8px',
+                                top: '20px'
+                              }}
+                            ></div>
+                          )}
+                          
+                          {/* Vertical connector to join matches (if not in the last match of a pair) */}
+                          {roundIndex < rounds - 1 && matchIndex % 2 === 0 && (
+                            <div 
+                              className="connector connector-vertical" 
+                              style={{
+                                position: 'absolute',
+                                right: '-8px',
+                                top: '20px',
+                                height: `${matchSpacing - 40}px` // Height to connect to the next match
+                              }}
+                            ></div>
+                          )}
+                          
+                          {/* Horizontal connector from the previous round */}
+                          {roundIndex > 0 && (
+                            <div 
+                              className="connector connector-horizontal" 
+                              style={{
+                                position: 'absolute',
+                                left: '-8px',
+                                width: '8px',
+                                top: '20px'
+                              }}
+                            ></div>
+                          )}
                         </div>
-                        <div className="competitor">
-                          {"_________________"}
-                        </div>
-                      </div>
-                      
-                      {/* Connector to next round (except for final round) */}
-                      {roundIndex < rounds - 1 && (
-                        <div 
-                          className="connector connector-horizontal" 
-                          style={{
-                            position: 'absolute',
-                            right: '-8px',
-                            width: '8px',
-                            top: '20px'
-                          }}
-                        ></div>
-                      )}
-                      
-                      {/* Vertical connector to join matches (if not in the last match of a pair) */}
-                      {roundIndex < rounds - 1 && matchIndex % 2 === 0 && (
-                        <div 
-                          className="connector connector-vertical" 
-                          style={{
-                            position: 'absolute',
-                            right: '-8px',
-                            top: '20px',
-                            height: `${20 + matchSpacing}px` // Connect to the next match
-                          }}
-                        ></div>
-                      )}
-                      
-                      {/* Horizontal connector from the previous round */}
-                      {roundIndex > 0 && (
-                        <div 
-                          className="connector connector-horizontal" 
-                          style={{
-                            position: 'absolute',
-                            left: '-8px',
-                            width: '8px',
-                            top: '20px'
-                          }}
-                        ></div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })
           );
-        })}
+        })()}
       </div>
       
       <div className="mt-8 border-t pt-4">
