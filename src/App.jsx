@@ -208,7 +208,7 @@ export default function KarateTournamentBracket() {
           {/* Tournament Bracket Display */}
           <div
             ref={bracketRef}
-            className="bg-white rounded-lg shadow-md print:shadow-none print:p-0 w-full h-full"
+            className="bg-white rounded-lg shadow-md print:shadow-none p-4 overflow-auto"
           >
             <BracketDisplay
               competitorCount={competitorCount}
@@ -319,197 +319,181 @@ function BracketDisplay({ competitorCount, bracketData }) {
   const { rounds, totalSlots, matches } = bracketData;
   
   return (
-    <div className="p-4 w-full">
-      <div className="mb-4 text-center">
+    <div className="w-full">
+      <div className="mb-6 text-center">
         <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
-        <p className="text-sm text-gray-600 print:text-gray-800">
+        <p className="text-sm text-gray-600 print:text-gray-800 mb-4">
           {competitorCount} Competitors • {totalSlots - competitorCount} Byes • {rounds} Rounds
         </p>
       </div>
       
-      <div className="tournament-bracket">
-        <style jsx>{`
-          .tournament-bracket {
-            width: 100%;
-            overflow-x: auto;
-            padding-bottom: 2rem;
-          }
-          
-          .bracket-container {
-            display: flex;
-            justify-content: space-between;
-            min-width: fit-content;
-          }
-          
+      <style>{`
+        .tournament-bracket {
+          display: flex;
+          width: 100%;
+          overflow-x: auto;
+        }
+        
+        .round {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-width: 180px;
+          margin: 0 8px;
+        }
+        
+        .round-title {
+          text-align: center;
+          font-weight: 600;
+          padding: 10px;
+          margin-bottom: 20px;
+          background-color: #2d3748;
+          color: white;
+          border-radius: 4px;
+        }
+        
+        .match-container {
+          flex: 1;
+          position: relative;
+        }
+        
+        .match {
+          margin-bottom: 20px;
+          position: relative;
+        }
+        
+        .match-box {
+          border: 1px solid #ccc;
+          border-radius: 4px;
+          overflow: hidden;
+          background-color: white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+          width: 100%;
+        }
+        
+        .competitor {
+          padding: 8px 10px;
+          min-height: 40px;
+          display: flex;
+          align-items: center;
+          border-bottom: 1px solid #eee;
+        }
+        
+        .competitor:last-child {
+          border-bottom: none;
+        }
+        
+        .connector {
+          position: absolute;
+          background-color: #888;
+        }
+        
+        .connector-horizontal {
+          height: 2px;
+        }
+        
+        .connector-vertical {
+          width: 2px;
+        }
+        
+        @media (max-width: 640px) {
           .round {
-            display: flex;
-            flex-direction: column;
-            flex: 1;
-            min-width: 180px;
-            position: relative;
-            margin: 0 0.5rem;
-          }
-          
-          .round-title {
-            text-align: center;
-            font-weight: 600;
-            margin-bottom: 1rem;
-            padding: 0.5rem;
-            background-color: #2d3748;
-            color: white;
-            border-radius: 4px;
-          }
-          
-          .matches {
-            position: relative;
-            flex: 1;
-            height: 100%;
-          }
-          
-          .match {
-            position: absolute;
-            left: 0;
-          }
-          
-          .match-box {
-            width: 100%;
-            border: 1px solid #cbd5e0;
-            border-radius: 4px;
-            background-color: white;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-width: 120px;
           }
           
           .competitor {
-            padding: 0.5rem;
-            border-bottom: 1px solid #e2e8f0;
-            min-height: 2.5rem;
-            display: flex;
-            align-items: center;
+            font-size: 12px;
+            padding: 6px 8px;
+            min-height: 30px;
           }
+        }
+      `}</style>
+      
+      <div className="tournament-bracket">
+        {/* Render each round */}
+        {Array.from({ length: rounds }, (_, roundIndex) => {
+          const matchesInRound = totalSlots / Math.pow(2, roundIndex + 1);
+          const spacingFactor = Math.pow(2, roundIndex);
           
-          .competitor:last-child {
-            border-bottom: none;
-          }
-          
-          .line {
-            position: absolute;
-            background-color: #888;
-          }
-          
-          .line-horizontal {
-            height: 2px;
-          }
-          
-          .line-vertical {
-            width: 2px;
-          }
-          
-          @media (max-width: 768px) {
-            .round {
-              min-width: 140px;
-            }
-          }
-          
-          @media (max-width: 640px) {
-            .round {
-              min-width: 120px;
-            }
-            
-            .competitor {
-              font-size: 0.75rem;
-              padding: 0.25rem 0.5rem;
-              min-height: 2rem;
-            }
-          }
-        `}</style>
-        
-        <div className="bracket-container">
-          {Array.from({ length: rounds }, (_, roundIndex) => {
-            const roundMatches = totalSlots / Math.pow(2, roundIndex + 1);
-            const spacingFactor = Math.pow(2, roundIndex);
-            const matchHeight = 80; // Base match height including margin
-            
-            return (
-              <div className="round" key={`round-${roundIndex}`}>
-                <div className="round-title">
-                  {roundIndex === 0 
-                    ? "First Round" 
-                    : roundIndex === rounds - 1 
-                      ? "Final" 
-                      : `Round ${roundIndex + 1}`
-                  }
-                </div>
-                
-                <div className="matches" style={{ height: `${totalSlots * matchHeight / 2}px` }}>
-                  {Array.from({ length: roundMatches }, (_, matchIndex) => {
-                    // Calculate match position
-                    const matchPosition = matchIndex * matchHeight * spacingFactor;
-                    const hasBye = roundIndex === 0 && matches[matchIndex]?.hasBye;
-                    
-                    return (
-                      <div 
-                        className="match" 
-                        key={`match-${roundIndex}-${matchIndex}`}
-                        style={{ top: `${matchPosition}px` }}
-                      >
-                        <div className="match-box">
-                          <div className="competitor">
-                            {hasBye ? "BYE" : "_________________"}
-                          </div>
-                          <div className="competitor">
-                            {"_________________"}
-                          </div>
-                        </div>
-                        
-                        {/* Connectors to next round */}
-                        {roundIndex < rounds - 1 && (
-                          <>
-                            {/* Horizontal line */}
-                            <div 
-                              className="line line-horizontal" 
-                              style={{ 
-                                top: '20px', 
-                                right: '-10px',
-                                width: '10px'
-                              }}
-                            />
-                            
-                            {/* Vertical line (if needed) */}
-                            {matchIndex % 2 === 0 && (
-                              <div 
-                                className="line line-vertical" 
-                                style={{ 
-                                  top: '20px', 
-                                  right: '-10px',
-                                  height: `${matchHeight * spacingFactor}px`
-                                }}
-                              />
-                            )}
-                          </>
-                        )}
-                        
-                        {/* Connector from previous round */}
-                        {roundIndex > 0 && (
-                          <div 
-                            className="line line-horizontal" 
-                            style={{ 
-                              top: '20px', 
-                              left: '-10px',
-                              width: '10px'
-                            }}
-                          />
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+          return (
+            <div className="round" key={`round-${roundIndex}`}>
+              <div className="round-title">
+                {roundIndex === 0 ? "First Round" : 
+                 roundIndex === rounds - 1 ? "Final" : 
+                 `Round ${roundIndex + 1}`}
               </div>
-            );
-          })}
-        </div>
+              
+              <div className="match-container">
+                {/* Render matches for this round */}
+                {Array.from({ length: matchesInRound }, (_, matchIndex) => {
+                  const hasBye = roundIndex === 0 && matches[matchIndex]?.hasBye;
+                  const matchSpacing = spacingFactor * 20; // Increased spacing for each round
+                  
+                  return (
+                    <div 
+                      className="match" 
+                      key={`match-${roundIndex}-${matchIndex}`}
+                      style={{
+                        marginBottom: `${matchSpacing}px`
+                      }}
+                    >
+                      <div className="match-box">
+                        <div className="competitor">
+                          {hasBye ? "BYE" : "_________________"}
+                        </div>
+                        <div className="competitor">
+                          {"_________________"}
+                        </div>
+                      </div>
+                      
+                      {/* Connector to next round (except for final round) */}
+                      {roundIndex < rounds - 1 && (
+                        <div 
+                          className="connector connector-horizontal" 
+                          style={{
+                            position: 'absolute',
+                            right: '-8px',
+                            width: '8px',
+                            top: '20px'
+                          }}
+                        ></div>
+                      )}
+                      
+                      {/* Vertical connector to join matches (if not in the last match of a pair) */}
+                      {roundIndex < rounds - 1 && matchIndex % 2 === 0 && (
+                        <div 
+                          className="connector connector-vertical" 
+                          style={{
+                            position: 'absolute',
+                            right: '-8px',
+                            top: '20px',
+                            height: `${20 + matchSpacing}px` // Connect to the next match
+                          }}
+                        ></div>
+                      )}
+                      
+                      {/* Horizontal connector from the previous round */}
+                      {roundIndex > 0 && (
+                        <div 
+                          className="connector connector-horizontal" 
+                          style={{
+                            position: 'absolute',
+                            left: '-8px',
+                            width: '8px',
+                            top: '20px'
+                          }}
+                        ></div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
       </div>
       
-      <div className="mt-6 print:mt-8">
+      <div className="mt-8 border-t pt-4">
         <p className="text-xs text-gray-500 print:text-gray-700">
           Tournament Director: ______________________ Date: ____________
         </p>
