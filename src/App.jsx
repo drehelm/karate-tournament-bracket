@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card } from "./components/ui/card";
 import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import mermaid from 'mermaid';
 
 export default function KarateTournamentBracket() {
   const [competitorCount, setCompetitorCount] = useState(8);
@@ -13,6 +14,30 @@ export default function KarateTournamentBracket() {
   const [paperSize, setPaperSize] = useState('letter'); // 'letter' or 'a4'
   const [bracketOrientation, setBracketOrientation] = useState('landscape'); // 'portrait' or 'landscape'
   const bracketRef = useRef(null);
+  const mermaidRef = useRef(null);
+
+  // Initialize mermaid when component mounts
+  useEffect(() => {
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      flowchart: {
+        useMaxWidth: false,
+        htmlLabels: true,
+        curve: 'linear', // Use straight lines
+      },
+      securityLevel: 'loose',
+    });
+  }, []);
+
+  // Render mermaid diagram when bracket is generated
+  useEffect(() => {
+    if (bracketGenerated && mermaidRef.current) {
+      const mermaidDiagram = generateMermaidDiagram();
+      mermaidRef.current.innerHTML = mermaidDiagram;
+      mermaid.init(undefined, mermaidRef.current);
+    }
+  }, [bracketGenerated, competitorCount]);
 
   // Calculate the total slots needed (next power of 2)
   const calculateTotalSlots = (count) => {
@@ -55,6 +80,49 @@ export default function KarateTournamentBracket() {
     }
 
     return { rounds, totalSlots, matches };
+  };
+
+  // Generate Mermaid diagram syntax for tournament bracket
+  const generateMermaidDiagram = () => {
+    const { rounds, totalSlots, matches } = generateBracket();
+    let diagram = 'graph LR\n';
+    
+    // Define a function to generate a unique ID for each match
+    const matchId = (round, match) => `R${round}M${match}`;
+    
+    // Define style for matches
+    diagram += 'classDef match fill:#f9f9f9,stroke:#333,stroke-width:1px,rx:4px,ry:4px\n';
+    diagram += 'classDef bye fill:#f0f0f0,stroke:#999,stroke-width:1px,rx:4px,ry:4px,font-style:italic\n';
+    
+    // First round - initial matches
+    for (let i = 0; i < totalSlots / 2; i++) {
+      const hasBye = matches[i]?.hasBye;
+      if (hasBye) {
+        diagram += `${matchId(0, i)}["BYE"]\n`;
+        diagram += `${matchId(0, i)}:::bye\n`;
+      } else {
+        diagram += `${matchId(0, i)}["Competitor ${i*2+1}<hr/>Competitor ${i*2+2}"]\n`;
+        diagram += `${matchId(0, i)}:::match\n`;
+      }
+    }
+    
+    // Generate subsequent rounds
+    for (let r = 1; r < rounds; r++) {
+      const matchesInRound = totalSlots / Math.pow(2, r + 1);
+      
+      for (let m = 0; m < matchesInRound; m++) {
+        // Create match box for this round
+        diagram += `${matchId(r, m)}["Winner ${m*2+1}<hr/>Winner ${m*2+2}"]\n`;
+        diagram += `${matchId(r, m)}:::match\n`;
+        
+        // Connect to previous round matches
+        diagram += `${matchId(r-1, m*2)} --> ${matchId(r, m)}\n`;
+        diagram += `${matchId(r-1, m*2+1)} --> ${matchId(r, m)}\n`;
+      }
+    }
+    
+    // Set orientation to left-to-right and use straight lines with 90-degree angles
+    return diagram;
   };
 
   // Print bracket
@@ -205,15 +273,36 @@ export default function KarateTournamentBracket() {
             </Button>
           </div>
           
-          {/* Tournament Bracket Display */}
+          {/* Tournament Bracket Display using Mermaid */}
           <div
             ref={bracketRef}
             className="bg-white rounded-lg shadow-md print:shadow-none p-4 overflow-auto"
           >
-            <BracketDisplay
-              competitorCount={competitorCount}
-              bracketData={generateBracket()}
-            />
+            <div className="mb-6 text-center">
+              <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
+              <p className="text-sm text-gray-600 print:text-gray-800 mb-4">
+                {competitorCount} Competitors • {calculateTotalSlots(competitorCount) - competitorCount} Byes • {calculateRounds(calculateTotalSlots(competitorCount))} Rounds
+              </p>
+            </div>
+            
+            {/* Mermaid diagram container */}
+            <div 
+              ref={mermaidRef} 
+              className="mermaid tournament-bracket" 
+              style={{ 
+                width: '100%',
+                minHeight: '300px',
+                overflowX: 'auto'
+              }}
+            >
+              {/* Mermaid diagram will be rendered here */}
+            </div>
+            
+            <div className="mt-8 border-t pt-4">
+              <p className="text-xs text-gray-500 print:text-gray-700">
+                Tournament Director: ______________________ Date: ____________
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -294,14 +383,6 @@ export default function KarateTournamentBracket() {
               <Button
                 onClick={() => {
                   setShowSettings(false);
-                  if (bracketGenerated) {
-                    // Apply settings immediately if the bracket is generated
-                    setTimeout(() => {
-                      if (document.querySelector('.tournament-bracket')) {
-                        document.querySelector('.tournament-bracket').style.pageBreakInside = 'avoid';
-                      }
-                    }, 100);
-                  }
                 }}
                 className="bg-blue-500 text-white"
               >
@@ -311,217 +392,6 @@ export default function KarateTournamentBracket() {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
-  );
-}
-
-function BracketDisplay({ competitorCount, bracketData }) {
-  const { rounds, totalSlots, matches } = bracketData;
-  
-  return (
-    <div className="w-full">
-      <div className="mb-6 text-center">
-        <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
-        <p className="text-sm text-gray-600 print:text-gray-800 mb-4">
-          {competitorCount} Competitors • {totalSlots - competitorCount} Byes • {rounds} Rounds
-        </p>
-      </div>
-      
-      <style>{`
-        .tournament-bracket {
-          display: flex;
-          width: 100%;
-          overflow-x: auto;
-        }
-        
-        .round {
-          display: flex;
-          flex-direction: column;
-          flex: 1;
-          min-width: 180px;
-          margin: 0 8px;
-        }
-        
-        .round-title {
-          text-align: center;
-          font-weight: 600;
-          padding: 10px;
-          margin-bottom: 20px;
-          background-color: #2d3748;
-          color: white;
-          border-radius: 4px;
-        }
-        
-        .matches {
-          position: relative;
-          height: 100%;
-        }
-        
-        .match {
-          position: absolute;
-          width: 100%;
-        }
-        
-        .match-box {
-          border: 1px solid #ccc;
-          border-radius: 4px;
-          overflow: hidden;
-          background-color: white;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          width: 100%;
-        }
-        
-        .competitor {
-          padding: 8px 10px;
-          min-height: 40px;
-          display: flex;
-          align-items: center;
-          border-bottom: 1px solid #eee;
-        }
-        
-        .competitor:last-child {
-          border-bottom: none;
-        }
-        
-        .connector {
-          position: absolute;
-          background-color: #888;
-        }
-        
-        .connector-horizontal {
-          height: 2px;
-        }
-        
-        .connector-vertical {
-          width: 2px;
-        }
-        
-        @media (max-width: 640px) {
-          .round {
-            min-width: 120px;
-          }
-          
-          .competitor {
-            font-size: 12px;
-            padding: 6px 8px;
-            min-height: 30px;
-          }
-        }
-      `}</style>
-      
-      <div className="tournament-bracket">
-        {/* Calculate total bracket height based on first round matches */}
-        {(() => {
-          // Base unit for match height + spacing
-          const matchHeight = 80;
-          // Total height needed for the bracket (based on first round)
-          const totalHeight = totalSlots / 2 * matchHeight;
-          
-          return (
-            Array.from({ length: rounds }, (_, roundIndex) => {
-              const matchesInRound = totalSlots / Math.pow(2, roundIndex + 1);
-              const matchSpacing = Math.pow(2, roundIndex) * matchHeight;
-              
-              return (
-                <div className="round" key={`round-${roundIndex}`}>
-                  <div className="round-title">
-                    {roundIndex === 0 ? "First Round" : 
-                     roundIndex === rounds - 1 ? "Final" : 
-                     `Round ${roundIndex + 1}`}
-                  </div>
-                  
-                  <div className="matches" style={{ height: `${totalHeight}px` }}>
-                    {Array.from({ length: matchesInRound }, (_, matchIndex) => {
-                      const hasBye = roundIndex === 0 && matches[matchIndex]?.hasBye;
-                      
-                      // Calculate vertical position of match
-                      let verticalPosition;
-                      
-                      if (roundIndex === 0) {
-                        // First round matches have fixed spacing
-                        verticalPosition = matchIndex * matchHeight;
-                      } else {
-                        // For subsequent rounds, calculate position to center between parent matches
-                        const parentIndex1 = matchIndex * 2;
-                        const parentIndex2 = matchIndex * 2 + 1;
-                        const parentPosition1 = parentIndex1 * (matchHeight / Math.pow(2, roundIndex - 1));
-                        const parentPosition2 = parentIndex2 * (matchHeight / Math.pow(2, roundIndex - 1));
-                        
-                        // Center between the two parent matches
-                        verticalPosition = (parentPosition1 + parentPosition2) / 2 - 40;
-                      }
-                      
-                      return (
-                        <div 
-                          className="match" 
-                          key={`match-${roundIndex}-${matchIndex}`}
-                          style={{
-                            top: `${verticalPosition}px`
-                          }}
-                        >
-                          <div className="match-box">
-                            <div className="competitor">
-                              {hasBye ? "BYE" : "_________________"}
-                            </div>
-                            <div className="competitor">
-                              {"_________________"}
-                            </div>
-                          </div>
-                          
-                          {/* Connector to next round (except for final round) */}
-                          {roundIndex < rounds - 1 && (
-                            <div 
-                              className="connector connector-horizontal" 
-                              style={{
-                                position: 'absolute',
-                                right: '-8px',
-                                width: '8px',
-                                top: '20px'
-                              }}
-                            ></div>
-                          )}
-                          
-                          {/* Vertical connector to join matches (if not in the last match of a pair) */}
-                          {roundIndex < rounds - 1 && matchIndex % 2 === 0 && (
-                            <div 
-                              className="connector connector-vertical" 
-                              style={{
-                                position: 'absolute',
-                                right: '-8px',
-                                top: '20px',
-                                height: `${matchSpacing - 40}px` // Height to connect to the next match
-                              }}
-                            ></div>
-                          )}
-                          
-                          {/* Horizontal connector from the previous round */}
-                          {roundIndex > 0 && (
-                            <div 
-                              className="connector connector-horizontal" 
-                              style={{
-                                position: 'absolute',
-                                left: '-8px',
-                                width: '8px',
-                                top: '20px'
-                              }}
-                            ></div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })
-          );
-        })()}
-      </div>
-      
-      <div className="mt-8 border-t pt-4">
-        <p className="text-xs text-gray-500 print:text-gray-700">
-          Tournament Director: ______________________ Date: ____________
-        </p>
-      </div>
     </div>
   );
 }

@@ -1,0 +1,103 @@
+/* Custom styles for Mermaid diagrams */
+
+.mermaid {
+  font-family: 'Arial', sans-serif;
+}
+
+/* Increase diagram size and improve readability */
+.mermaid .node rect,
+.mermaid .node circle,
+.mermaid .node ellipse,
+.mermaid .node polygon,
+.mermaid .node path {
+  fill: #ffffff;
+  stroke: #333333;
+  stroke-width: 1px;
+}
+
+/* Style for matches */
+.mermaid .node.match rect {
+  fill: #f8f9fa;
+  stroke: #495057;
+  stroke-width: 1px;
+  rx: 4px;
+  ry: 4px;
+}
+
+/* Style for bye matches */
+.mermaid .node.bye rect {
+  fill: #f0f0f0;
+  stroke: #868e96;
+  stroke-dasharray: 3, 3;
+  stroke-width: 1px;
+  rx: 4px;
+  ry: 4px;
+}
+
+/* Style for edges (connecting lines) */
+.mermaid .edgePath .path {
+  stroke: #495057;
+  stroke-width: 1.5px;
+  fill: none;
+}
+
+/* Style for edge markers (arrowheads) */
+.mermaid .edgePath marker {
+  fill: #495057;
+}
+
+/* Improve text readability */
+.mermaid .node text {
+  font-size: 12px;
+  font-family: 'Arial', sans-serif;
+  fill: #212529;
+}
+
+/* Style for round labels */
+.mermaid .node.round-label rect {
+  fill: #343a40;
+  stroke: none;
+  rx: 4px;
+  ry: 4px;
+}
+
+.mermaid .node.round-label text {
+  fill: #ffffff;
+  font-weight: bold;
+}
+
+/* For print media - ensure everything is visible */
+@media print {
+  .mermaid {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+  
+  .mermaid .node rect,
+  .mermaid .node circle,
+  .mermaid .node ellipse,
+  .mermaid .node polygon,
+  .mermaid .node path {
+    stroke: #000000;
+  }
+  
+  .mermaid .edgePath .path {
+    stroke: #000000;
+    stroke-width: 1px;
+  }
+}
+
+/* Mermaid diagram container */
+.tournament-bracket {
+  width: 100%;
+  overflow-x: auto;
+  padding: 20px 0;
+  border-radius: 8px;
+  background-color: #ffffff;
+}
+
+/* Ensure the diagram fills available width */
+.mermaid svg {
+  min-width: 100%;
+  height: auto;
+}
