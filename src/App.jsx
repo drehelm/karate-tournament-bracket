@@ -17,6 +17,10 @@ export default function KarateTournamentBracket() {
   const bracketRef = useRef(null);
   const mermaidRef = useRef(null);
 
+  // Fixed tournament structure
+  const FIXED_FIRST_ROUND_ENTRIES = 32;
+  const TOTAL_ROUNDS = 5; // 32 -> 16 -> 8 -> 4 -> 2 -> 1 (champion)
+
   // Initialize mermaid when component mounts
   useEffect(() => {
     mermaid.initialize({
@@ -74,83 +78,100 @@ export default function KarateTournamentBracket() {
     }
   }, [bracketGenerated, competitorCount, mermaidSvgId]);
 
-  // Calculate the total slots needed (next power of 2)
-  const calculateTotalSlots = (count) => {
-    let power = 1;
-    while (power < count) {
-      power *= 2;
-    }
-    return power;
+  // Calculate the number of byes needed
+  const calculateByes = (count) => {
+    return FIXED_FIRST_ROUND_ENTRIES - count;
   };
 
-  // Calculate the number of rounds in the tournament
-  const calculateRounds = (totalSlots) => {
-    return Math.log2(totalSlots);
-  };
-
-  // Generate the bracket structure with byes
+  // Generate the bracket structure with byes based on fixed tournament size
   const generateBracket = () => {
-    const totalSlots = calculateTotalSlots(competitorCount);
-    const byeCount = totalSlots - competitorCount;
-    const rounds = calculateRounds(totalSlots);
-
-    // Initial round
-    let matches = [];
-    let activeCompetitors = competitorCount;
-    let activeByes = byeCount;
-
-    // Distribute byes across the bracket
-    for (let i = 0; i < totalSlots / 2; i++) {
-      // Determine if this match has a bye
-      if (activeByes > 0 && (i % 2 === 0 || activeCompetitors <= 1)) {
-        // One competitor gets a bye
-        matches.push({ hasBye: true, position: i });
-        activeByes--;
-        activeCompetitors--;
-      } else {
+    const byeCount = calculateByes(competitorCount);
+    
+    // Create an array of first round matches (always 32 entries / 16 matches)
+    // Each match has a status: regular, partial-bye (one competitor gets a bye), or full-bye (both slots are byes)
+    let firstRoundMatches = [];
+    let remainingCompetitors = competitorCount;
+    
+    for (let i = 0; i < FIXED_FIRST_ROUND_ENTRIES / 2; i++) {
+      if (remainingCompetitors >= 2) {
         // Regular match with two competitors
-        matches.push({ hasBye: false, position: i });
-        activeCompetitors -= 2;
+        firstRoundMatches.push({ 
+          type: 'regular',
+          position: i,
+          competitor1: `Competitor ${i*2 + 1}`,
+          competitor2: `Competitor ${i*2 + 2}`
+        });
+        remainingCompetitors -= 2;
+      } else if (remainingCompetitors === 1) {
+        // Partial bye - one competitor, one bye
+        firstRoundMatches.push({ 
+          type: 'partial-bye',
+          position: i,
+          competitor1: `Competitor ${competitorCount - remainingCompetitors + 1}`,
+          competitor2: 'BYE'
+        });
+        remainingCompetitors -= 1;
+      } else {
+        // Full bye - both slots are empty
+        firstRoundMatches.push({ 
+          type: 'full-bye',
+          position: i,
+          competitor1: 'BYE',
+          competitor2: 'BYE'
+        });
       }
     }
-
-    return { rounds, totalSlots, matches };
+    
+    return { rounds: TOTAL_ROUNDS, firstRoundMatches };
   };
 
-  // Generate Mermaid diagram syntax for tournament bracket
+  // Generate Mermaid diagram syntax for fixed tournament bracket
   const generateMermaidDiagram = () => {
-    const { rounds, totalSlots, matches } = generateBracket();
+    const { rounds, firstRoundMatches } = generateBracket();
     let diagram = 'graph LR\n';
     
-    // Define a function to generate a unique ID for each match
+    // Function to generate a unique ID for each match
     const matchId = (round, match) => `R${round}M${match}`;
     
-    // Define style for matches
+    // Define styles for different types of matches
     diagram += 'classDef match fill:#f9f9f9,stroke:#333,stroke-width:1px,rx:4px,ry:4px\n';
     diagram += 'classDef bye fill:#f0f0f0,stroke:#999,stroke-width:1px,rx:4px,ry:4px,font-style:italic\n';
+    diagram += 'classDef full-bye fill:#f0f0f0,stroke:#999,stroke-width:1px,rx:4px,ry:4px,font-style:italic,stroke-dasharray:5,5\n';
     
-    // First round - initial matches
-    for (let i = 0; i < totalSlots / 2; i++) {
-      const hasBye = matches[i]?.hasBye;
-      if (hasBye) {
-        diagram += `${matchId(0, i)}["BYE<hr/>Competitor ${i+1}"]\n`;
-        diagram += `${matchId(0, i)}:::bye\n`;
-      } else {
-        diagram += `${matchId(0, i)}["Competitor ${i*2+1}<hr/>Competitor ${i*2+2}"]\n`;
+    // First round - always 16 matches (32 entries)
+    for (let i = 0; i < firstRoundMatches.length; i++) {
+      const match = firstRoundMatches[i];
+      
+      if (match.type === 'regular') {
+        diagram += `${matchId(0, i)}["${match.competitor1}<hr/>${match.competitor2}"]\n`;
         diagram += `${matchId(0, i)}:::match\n`;
+      } else if (match.type === 'partial-bye') {
+        diagram += `${matchId(0, i)}["${match.competitor1}<hr/>${match.competitor2}"]\n`;
+        diagram += `${matchId(0, i)}:::bye\n`;
+      } else { // full-bye
+        diagram += `${matchId(0, i)}["${match.competitor1}<hr/>${match.competitor2}"]\n`;
+        diagram += `${matchId(0, i)}:::full-bye\n`;
       }
     }
     
-    // Generate subsequent rounds
+    // Generate subsequent rounds - always follow fixed structure
+    // Round 1: 16 matches -> Round 2: 8 matches -> Round 3: 4 matches -> Round 4: 2 matches -> Round 5: 1 match (final)
     for (let r = 1; r < rounds; r++) {
-      const matchesInRound = totalSlots / Math.pow(2, r + 1);
+      const matchesInRound = FIXED_FIRST_ROUND_ENTRIES / Math.pow(2, r + 1);
       
       for (let m = 0; m < matchesInRound; m++) {
         // Create match box for this round
-        diagram += `${matchId(r, m)}["Winner ${m*2+1}<hr/>Winner ${m*2+2}"]\n`;
+        let roundName = "";
+        if (r === rounds - 1) {
+          roundName = "Final";
+        } else {
+          roundName = `Round ${r + 1}`;
+        }
+        
+        diagram += `${matchId(r, m)}["${roundName}<hr/>Match ${m + 1}"]\n`;
         diagram += `${matchId(r, m)}:::match\n`;
         
-        // Connect to previous round matches using simple syntax
+        // Connect to previous round matches
         diagram += `${matchId(r-1, m*2)} --> ${matchId(r, m)}\n`;
         diagram += `${matchId(r-1, m*2+1)} --> ${matchId(r, m)}\n`;
       }
@@ -257,11 +278,14 @@ export default function KarateTournamentBracket() {
                 id="competitorCount"
                 type="number"
                 min="2"
-                max="64"
+                max={FIXED_FIRST_ROUND_ENTRIES}
                 value={competitorCount}
                 onChange={(e) => setCompetitorCount(parseInt(e.target.value) || 2)}
                 className="w-full p-2 border rounded"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                The bracket will be laid out for {FIXED_FIRST_ROUND_ENTRIES} entries, with byes filled in as needed.
+              </p>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -322,7 +346,7 @@ export default function KarateTournamentBracket() {
             <div className="mb-6 text-center">
               <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
               <p className="text-sm text-gray-600 print:text-gray-800 mb-4">
-                {competitorCount} Competitors • {calculateTotalSlots(competitorCount) - competitorCount} Byes • {calculateRounds(calculateTotalSlots(competitorCount))} Rounds
+                {competitorCount} Competitors • {calculateByes(competitorCount)} Byes • {TOTAL_ROUNDS} Rounds
               </p>
             </div>
             
