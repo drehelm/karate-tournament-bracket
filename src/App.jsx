@@ -4,7 +4,6 @@ import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
-import { SingleEliminationBracket, Match, SVGViewer } from '@g-loot/react-tournament-brackets';
 
 export default function KarateTournamentBracket() {
   const [competitorCount, setCompetitorCount] = useState(8);
@@ -319,137 +318,189 @@ export default function KarateTournamentBracket() {
 function BracketDisplay({ competitorCount, bracketData }) {
   const { rounds, totalSlots, matches } = bracketData;
   
-  // Transform our bracket data to match the format expected by @g-loot/react-tournament-brackets
-  const transformBracketData = () => {
-    // Create participant data with placeholders
-    const participants = {};
-    for (let i = 0; i < totalSlots; i++) {
-      participants[`p${i}`] = {
-        id: `p${i}`,
-        name: "_________________",
-        status: null,
-        resultText: null
-      };
+  // Generate brackets with a mobile-friendly approach
+  const renderBracket = () => {
+    // Create bracket structure
+    const bracketStructure = [];
+    
+    for (let round = 0; round < rounds; round++) {
+      const matchesInRound = totalSlots / Math.pow(2, round + 1);
+      const roundMatches = [];
+      
+      for (let i = 0; i < matchesInRound; i++) {
+        // For first round, use the match data
+        if (round === 0) {
+          const match = matches[i];
+          roundMatches.push({
+            id: `${round}-${i}`,
+            hasBye: match ? match.hasBye : false
+          });
+        } else {
+          roundMatches.push({
+            id: `${round}-${i}`,
+            hasBye: false
+          });
+        }
+      }
+      
+      bracketStructure.push({
+        round,
+        name: round === 0 ? "First Round" : 
+              round === rounds - 1 ? "Final" : 
+              `Round ${round + 1}`,
+        matches: roundMatches
+      });
     }
     
-    // Generate the match tree recursively
-    const generateMatchTree = (roundIndex, matchIndex, nextMatchId = null) => {
-      const matchId = `m-${roundIndex}-${matchIndex}`;
-      
-      // For the first round, we have real match data including byes
-      if (roundIndex === 0) {
-        const match = matches[matchIndex];
-        const isBye = match && match.hasBye;
-        
-        // Calculate participant indices for this match
-        const team1Index = matchIndex * 2;
-        const team2Index = matchIndex * 2 + 1;
-        
-        if (isBye) {
-          participants[`p${team1Index}`].name = "BYE";
-        }
-        
-        return {
-          id: matchId,
-          name: `Round ${roundIndex + 1} - Match ${matchIndex + 1}`,
-          nextMatchId: nextMatchId,
-          tournamentRoundText: roundIndex === rounds - 1 ? "Final" : 
-                              roundIndex === 0 ? "First Round" : 
-                              `Round ${roundIndex + 1}`,
-          startTime: "",
-          state: "SCHEDULED",
-          participants: [
-            {
-              id: `p${team1Index}`,
-              resultText: null,
-              isWinner: false,
-              status: null,
-              name: participants[`p${team1Index}`].name
-            },
-            {
-              id: `p${team2Index}`,
-              resultText: null,
-              isWinner: false,
-              status: null,
-              name: participants[`p${team2Index}`].name
+    return (
+      <div className="tournament-tree">
+        {/* Mobile-friendly styles */}
+        <style jsx>{`
+          .tournament-tree {
+            display: flex;
+            flex-direction: row;
+            overflow-x: auto;
+            padding-bottom: 20px;
+            align-items: flex-start;
+          }
+          
+          .round-column {
+            display: flex;
+            flex-direction: column;
+            min-width: 160px;
+            flex-shrink: 0;
+            padding: 0 10px;
+            position: relative;
+          }
+          
+          .round-title {
+            text-align: center;
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding: 5px;
+            position: sticky;
+            top: 0;
+            background-color: white;
+            z-index: 10;
+          }
+          
+          .match-wrapper {
+            margin-bottom: var(--match-spacing);
+            position: relative;
+          }
+          
+          .match-box {
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            touch-action: manipulation;
+          }
+          
+          .competitor {
+            padding: 8px 10px;
+            font-size: 14px;
+            min-height: 24px;
+            display: flex;
+            align-items: center;
+          }
+          
+          .competitor-top {
+            border-bottom: 1px solid #eee;
+          }
+          
+          .connector {
+            position: absolute;
+            background-color: #888;
+          }
+          
+          .connector-horizontal {
+            height: 2px;
+            right: -10px;
+            width: 20px;
+            top: 50%;
+          }
+          
+          .connector-vertical {
+            width: 2px;
+            right: -10px;
+            background-color: #888;
+          }
+          
+          .connector-down {
+            top: 50%;
+          }
+          
+          .connector-up {
+            bottom: 50%;
+          }
+          
+          /* Mobile optimization */
+          @media (max-width: 640px) {
+            .round-column {
+              min-width: 140px;
+              padding: 0 5px;
             }
-          ]
-        };
-      } else {
-        // Generate the match structure with links to previous matches
-        const prevRound = roundIndex - 1;
-        const childMatchesFactor = Math.pow(2, rounds - roundIndex - 1);
-        const prevMatch1Index = matchIndex * 2;
-        const prevMatch2Index = matchIndex * 2 + 1;
-        
-        // Calculate the next match ID for the previous matches
-        const prevMatch1Id = `m-${prevRound}-${prevMatch1Index}`;
-        const prevMatch2Id = `m-${prevRound}-${prevMatch2Index}`;
-        
-        // Generate previous matches
-        const prevMatch1 = generateMatchTree(prevRound, prevMatch1Index, matchId);
-        const prevMatch2 = generateMatchTree(prevRound, prevMatch2Index, matchId);
-        
-        return {
-          id: matchId,
-          name: `Round ${roundIndex + 1} - Match ${matchIndex + 1}`,
-          nextMatchId: nextMatchId,
-          tournamentRoundText: roundIndex === rounds - 1 ? "Final" : `Round ${roundIndex + 1}`,
-          startTime: "",
-          state: "SCHEDULED",
-          participants: [
-            {
-              id: "to-be-decided",
-              resultText: null,
-              isWinner: false,
-              status: null,
-              name: "_________________"
-            },
-            {
-              id: "to-be-decided",
-              resultText: null,
-              isWinner: false,
-              status: null,
-              name: "_________________"
+            
+            .competitor {
+              padding: 6px 8px;
+              font-size: 12px;
             }
-          ],
-          // Include child matches
-          match1: prevMatch1,
-          match2: prevMatch2
-        };
-      }
-    };
-    
-    // Start with the final match and recursively generate all matches
-    const finalMatch = generateMatchTree(rounds - 1, 0);
-    
-    // Flatten the match tree
-    const flattenMatches = (match) => {
-      const matches = [match];
-      
-      if (match.match1) {
-        matches.push(...flattenMatches(match.match1));
-      }
-      
-      if (match.match2) {
-        matches.push(...flattenMatches(match.match2));
-      }
-      
-      // Clean up unnecessary properties for the library
-      const returnMatch = {...match};
-      delete returnMatch.match1;
-      delete returnMatch.match2;
-      
-      return matches;
-    };
-    
-    return flattenMatches(finalMatch);
+          }
+        `}</style>
+        
+        {bracketStructure.map((round) => (
+          <div key={`round-${round.round}`} className="round-column">
+            <div className="round-title">{round.name}</div>
+            <div className="matches-container" style={{
+              // Adjust spacing between matches based on the round
+              // First round has normal spacing, later rounds need progressively more space
+              '--match-spacing': `${Math.pow(2, round.round) * 20}px`
+            }}>
+              {round.matches.map((match, matchIndex) => {
+                // Calculate if this is a match with a bye in first round
+                const hasBye = round.round === 0 && match.hasBye;
+                
+                return (
+                  <div key={match.id} className="match-wrapper">
+                    <div className="match-box">
+                      <div className="competitor competitor-top">
+                        {hasBye ? "BYE" : "_________________"}
+                      </div>
+                      <div className="competitor competitor-bottom">
+                        {hasBye ? "_________________" : "_________________"}
+                      </div>
+                    </div>
+                    
+                    {/* Horizontal connector (except last round) */}
+                    {round.round < rounds - 1 && (
+                      <div className="connector connector-horizontal"></div>
+                    )}
+                    
+                    {/* Vertical connectors for rounds after the first */}
+                    {round.round > 0 && round.round < rounds && matchIndex % 2 === 0 && (
+                      <div className="connector connector-vertical connector-down" style={{
+                        top: '50%',
+                        height: `${Math.pow(2, round.round - 1) * 20 + 30}px`
+                      }}></div>
+                    )}
+                    
+                    {round.round > 0 && round.round < rounds && matchIndex % 2 === 1 && (
+                      <div className="connector connector-vertical connector-up" style={{
+                        bottom: '50%',
+                        height: `${Math.pow(2, round.round - 1) * 20 + 30}px`
+                      }}></div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
   };
-  
-  const matchData = transformBracketData();
-  
-  // Get the final match (the first one in our array)
-  const finalMatch = matchData[0];
   
   return (
     <div className="bracket-wrapper">
@@ -460,34 +511,8 @@ function BracketDisplay({ competitorCount, bracketData }) {
         </p>
       </div>
       
-      <div className="flex justify-center overflow-auto">
-        <SingleEliminationBracket
-          matches={matchData}
-          matchComponent={Match}
-          svgWrapper={({children, ...props}) => (
-            <SVGViewer 
-              width={rounds * 280} 
-              height={totalSlots * 40} 
-              {...props}
-            >
-              {children}
-            </SVGViewer>
-          )}
-          options={{
-            style: {
-              roundHeader: {
-                fontSize: '16px',
-                fontWeight: 'bold',
-                textAlign: 'center',
-                backgroundColor: 'transparent'
-              },
-              connectorColor: '#888',
-              connectorColorHighlight: '#888',
-              boxHeight: 60,
-              boxWidth: 180
-            }
-          }}
-        />
+      <div className="bracket-scroll-container overflow-x-auto">
+        {renderBracket()}
       </div>
       
       <div className="mt-6 print:mt-8">
