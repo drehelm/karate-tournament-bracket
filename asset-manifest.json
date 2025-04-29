@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/karate-tournament-bracket/static/css/main.dc7d74f0.css",
-    "main.js": "/karate-tournament-bracket/static/js/main.36ff9bd1.js",
+    "main.js": "/karate-tournament-bracket/static/js/main.298c330a.js",
     "static/js/213.0d641bd3.chunk.js": "/karate-tournament-bracket/static/js/213.0d641bd3.chunk.js",
     "static/js/732.3a6311f8.chunk.js": "/karate-tournament-bracket/static/js/732.3a6311f8.chunk.js",
     "static/js/351.7cfdc0f5.chunk.js": "/karate-tournament-bracket/static/js/351.7cfdc0f5.chunk.js",
@@ -44,7 +44,7 @@
     "static/js/355.a1d02afa.chunk.js": "/karate-tournament-bracket/static/js/355.a1d02afa.chunk.js",
     "index.html": "/karate-tournament-bracket/index.html",
     "main.dc7d74f0.css.map": "/karate-tournament-bracket/static/css/main.dc7d74f0.css.map",
-    "main.36ff9bd1.js.map": "/karate-tournament-bracket/static/js/main.36ff9bd1.js.map",
+    "main.298c330a.js.map": "/karate-tournament-bracket/static/js/main.298c330a.js.map",
     "213.0d641bd3.chunk.js.map": "/karate-tournament-bracket/static/js/213.0d641bd3.chunk.js.map",
     "732.3a6311f8.chunk.js.map": "/karate-tournament-bracket/static/js/732.3a6311f8.chunk.js.map",
     "351.7cfdc0f5.chunk.js.map": "/karate-tournament-bracket/static/js/351.7cfdc0f5.chunk.js.map",
@@ -82,6 +82,6 @@
   },
   "entrypoints": [
     "static/css/main.dc7d74f0.css",
-    "static/js/main.36ff9bd1.js"
+    "static/js/main.298c330a.js"
   ]
 }
