@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkarate_tournament_bracket=self.webpackChunkkarate_tournament_bracket||[]).push([[372],{7372:(e,a,t)=>{t.d(a,{createInfoServices:()=>r.v});var r=t(9456);t(1584)}}]);

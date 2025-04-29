@@ -1,0 +1,2 @@
+"use strict";(self.webpackChunkkarate_tournament_bracket=self.webpackChunkkarate_tournament_bracket||[]).push([[807],{2807:(e,r,t)=>{t.d(r,{diagram:()=>k});var a=t(3355),s=(t(6327),t(53),t(1580),t(2598),t(958),t(8434),t(9711),t(2596),t(634),t(3759)),k={parser:a.Zk,get db(){return new a.u4(2)},renderer:a.q7,styles:a.tM,init:(0,s.K2)((e=>{e.state||(e.state={}),e.state.arrowMarkerAbsolute=e.arrowMarkerAbsolute}),"init")}}}]);
+//# sourceMappingURL=807.50d7950e.chunk.js.map

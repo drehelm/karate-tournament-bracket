@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkkarate_tournament_bracket=self.webpackChunkkarate_tournament_bracket||[]).push([[318],{318:(e,a,t)=>{t.d(a,{createGitGraphServices:()=>r.b});var r=t(3670);t(1584)}}]);
