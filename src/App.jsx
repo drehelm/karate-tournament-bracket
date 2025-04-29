@@ -4,6 +4,7 @@ import { Button } from "./components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import html2canvas from 'html2canvas';
 import { jsPDF } from 'jspdf';
+import { SingleEliminationBracket, Match, SVGViewer } from '@g-loot/react-tournament-brackets';
 
 export default function KarateTournamentBracket() {
   const [competitorCount, setCompetitorCount] = useState(8);
@@ -318,180 +319,137 @@ export default function KarateTournamentBracket() {
 function BracketDisplay({ competitorCount, bracketData }) {
   const { rounds, totalSlots, matches } = bracketData;
   
-  const renderBracket = () => {
-    // Standard sizes for consistent rendering
-    const columnWidth = 200;
-    const matchHeight = 60;
-    const matchWidth = 180;
-    const hSpacing = 40;
-    
-    // Collection of JSX elements for each round
-    const bracketColumns = [];
-    
-    // Prepare data structure for the entire bracket
-    const bracketData = [];
-    
-    // Initialize structure with empty slots
-    for (let r = 0; r < rounds; r++) {
-      const matchesInRound = totalSlots / Math.pow(2, r + 1);
-      const roundMatches = [];
-      
-      for (let m = 0; m < matchesInRound; m++) {
-        roundMatches.push({
-          round: r,
-          position: m,
-          competitors: r === 0 
-            ? [(matches[m]?.hasBye ? "BYE" : "_________________"), "_________________"] 
-            : ["_________________", "_________________"]
-        });
-      }
-      
-      bracketData.push(roundMatches);
+  // Transform our bracket data to match the format expected by @g-loot/react-tournament-brackets
+  const transformBracketData = () => {
+    // Create participant data with placeholders
+    const participants = {};
+    for (let i = 0; i < totalSlots; i++) {
+      participants[`p${i}`] = {
+        id: `p${i}`,
+        name: "_________________",
+        status: null,
+        resultText: null
+      };
     }
     
-    // Calculate maximum height needed (based on first round which has most matches)
-    const firstRoundHeight = bracketData[0].length * (matchHeight + 20);
+    // Generate the match tree recursively
+    const generateMatchTree = (roundIndex, matchIndex, nextMatchId = null) => {
+      const matchId = `m-${roundIndex}-${matchIndex}`;
+      
+      // For the first round, we have real match data including byes
+      if (roundIndex === 0) {
+        const match = matches[matchIndex];
+        const isBye = match && match.hasBye;
+        
+        // Calculate participant indices for this match
+        const team1Index = matchIndex * 2;
+        const team2Index = matchIndex * 2 + 1;
+        
+        if (isBye) {
+          participants[`p${team1Index}`].name = "BYE";
+        }
+        
+        return {
+          id: matchId,
+          name: `Round ${roundIndex + 1} - Match ${matchIndex + 1}`,
+          nextMatchId: nextMatchId,
+          tournamentRoundText: roundIndex === rounds - 1 ? "Final" : 
+                              roundIndex === 0 ? "First Round" : 
+                              `Round ${roundIndex + 1}`,
+          startTime: "",
+          state: "SCHEDULED",
+          participants: [
+            {
+              id: `p${team1Index}`,
+              resultText: null,
+              isWinner: false,
+              status: null,
+              name: participants[`p${team1Index}`].name
+            },
+            {
+              id: `p${team2Index}`,
+              resultText: null,
+              isWinner: false,
+              status: null,
+              name: participants[`p${team2Index}`].name
+            }
+          ]
+        };
+      } else {
+        // Generate the match structure with links to previous matches
+        const prevRound = roundIndex - 1;
+        const childMatchesFactor = Math.pow(2, rounds - roundIndex - 1);
+        const prevMatch1Index = matchIndex * 2;
+        const prevMatch2Index = matchIndex * 2 + 1;
+        
+        // Calculate the next match ID for the previous matches
+        const prevMatch1Id = `m-${prevRound}-${prevMatch1Index}`;
+        const prevMatch2Id = `m-${prevRound}-${prevMatch2Index}`;
+        
+        // Generate previous matches
+        const prevMatch1 = generateMatchTree(prevRound, prevMatch1Index, matchId);
+        const prevMatch2 = generateMatchTree(prevRound, prevMatch2Index, matchId);
+        
+        return {
+          id: matchId,
+          name: `Round ${roundIndex + 1} - Match ${matchIndex + 1}`,
+          nextMatchId: nextMatchId,
+          tournamentRoundText: roundIndex === rounds - 1 ? "Final" : `Round ${roundIndex + 1}`,
+          startTime: "",
+          state: "SCHEDULED",
+          participants: [
+            {
+              id: "to-be-decided",
+              resultText: null,
+              isWinner: false,
+              status: null,
+              name: "_________________"
+            },
+            {
+              id: "to-be-decided",
+              resultText: null,
+              isWinner: false,
+              status: null,
+              name: "_________________"
+            }
+          ],
+          // Include child matches
+          match1: prevMatch1,
+          match2: prevMatch2
+        };
+      }
+    };
     
-    // Render each round
-    for (let r = 0; r < rounds; r++) {
-      const roundMatches = [];
-      const matchesInThisRound = bracketData[r];
+    // Start with the final match and recursively generate all matches
+    const finalMatch = generateMatchTree(rounds - 1, 0);
+    
+    // Flatten the match tree
+    const flattenMatches = (match) => {
+      const matches = [match];
       
-      // Calculate the space multiplier for this round
-      // This ensures proper alignment of matches as rounds progress
-      const spacingMultiplier = Math.pow(2, r);
-      
-      // Calculate spacing between matches in this round
-      const verticalSpacing = 20 * spacingMultiplier;
-      
-      for (let m = 0; m < matchesInThisRound.length; m++) {
-        const match = matchesInThisRound[m];
-        const isFirstRound = r === 0;
-        
-        // For non-first rounds, calculate vertical position to align with parent matches
-        const topPosition = isFirstRound 
-          ? m * (matchHeight + verticalSpacing)
-          : m * (matchHeight + verticalSpacing) * 2;
-        
-        roundMatches.push(
-          <div 
-            key={`match-${r}-${m}`} 
-            className="match-wrapper" 
-            style={{
-              position: 'absolute',
-              top: topPosition,
-              left: 0,
-              width: matchWidth,
-              height: matchHeight
-            }}
-          >
-            {/* Match box */}
-            <div 
-              className="match-box border border-gray-300 rounded shadow-sm bg-white"
-              style={{
-                width: matchWidth,
-                height: matchHeight,
-                display: 'flex',
-                flexDirection: 'column'
-              }}
-            >
-              <div className="competitor-top border-b border-gray-300 h-1/2 p-1 flex items-center">
-                <span className="text-sm truncate">{match.competitors[0]}</span>
-              </div>
-              <div className="competitor-bottom h-1/2 p-1 flex items-center">
-                <span className="text-sm truncate">{match.competitors[1]}</span>
-              </div>
-            </div>
-            
-            {/* Horizontal connector to next round (except for final round) */}
-            {r < rounds - 1 && (
-              <div 
-                className="connector-horizontal" 
-                style={{
-                  position: 'absolute',
-                  left: matchWidth,
-                  top: matchHeight / 2,
-                  width: hSpacing,
-                  height: 2,
-                  backgroundColor: '#888'
-                }}
-              />
-            )}
-            
-            {/* Vertical connector to parent match (except for first round) */}
-            {r > 0 && (
-              <>
-                <div 
-                  className="connector-vertical" 
-                  style={{
-                    position: 'absolute',
-                    left: -hSpacing / 2,
-                    top: -verticalSpacing,
-                    width: 2,
-                    height: verticalSpacing + matchHeight / 2,
-                    backgroundColor: '#888'
-                  }}
-                />
-                <div 
-                  className="connector-vertical-bottom" 
-                  style={{
-                    position: 'absolute',
-                    left: -hSpacing / 2,
-                    top: matchHeight / 2,
-                    width: 2,
-                    height: verticalSpacing,
-                    backgroundColor: '#888'
-                  }}
-                />
-                <div 
-                  className="connector-horizontal-left" 
-                  style={{
-                    position: 'absolute',
-                    left: -hSpacing / 2,
-                    top: matchHeight / 2,
-                    width: hSpacing / 2,
-                    height: 2,
-                    backgroundColor: '#888'
-                  }}
-                />
-              </>
-            )}
-          </div>
-        );
+      if (match.match1) {
+        matches.push(...flattenMatches(match.match1));
       }
       
-      const heightForThisRound = Math.max(
-        firstRoundHeight,
-        matchesInThisRound.length * (matchHeight + verticalSpacing) * (r > 0 ? 2 : 1)
-      );
+      if (match.match2) {
+        matches.push(...flattenMatches(match.match2));
+      }
       
-      // Create column for this round
-      bracketColumns.push(
-        <div 
-          key={`round-${r}`} 
-          className="round-column relative"
-          style={{
-            width: columnWidth,
-            height: heightForThisRound,
-            flexShrink: 0
-          }}
-        >
-          <div className="round-title text-center font-semibold mb-6 mt-2">
-            {r === 0 ? "First Round" : r === rounds - 1 ? "Final" : `Round ${r + 1}`}
-          </div>
-          <div className="matches-container relative" style={{ height: 'calc(100% - 40px)' }}>
-            {roundMatches}
-          </div>
-        </div>
-      );
-    }
+      // Clean up unnecessary properties for the library
+      const returnMatch = {...match};
+      delete returnMatch.match1;
+      delete returnMatch.match2;
+      
+      return matches;
+    };
     
-    return (
-      <div className="bracket-container flex justify-start overflow-x-auto">
-        {bracketColumns}
-      </div>
-    );
+    return flattenMatches(finalMatch);
   };
+  
+  const matchData = transformBracketData();
+  
+  // Get the final match (the first one in our array)
+  const finalMatch = matchData[0];
   
   return (
     <div className="bracket-wrapper">
@@ -502,7 +460,35 @@ function BracketDisplay({ competitorCount, bracketData }) {
         </p>
       </div>
       
-      {renderBracket()}
+      <div className="flex justify-center overflow-auto">
+        <SingleEliminationBracket
+          matches={matchData}
+          matchComponent={Match}
+          svgWrapper={({children, ...props}) => (
+            <SVGViewer 
+              width={rounds * 280} 
+              height={totalSlots * 40} 
+              {...props}
+            >
+              {children}
+            </SVGViewer>
+          )}
+          options={{
+            style: {
+              roundHeader: {
+                fontSize: '16px',
+                fontWeight: 'bold',
+                textAlign: 'center',
+                backgroundColor: 'transparent'
+              },
+              connectorColor: '#888',
+              connectorColorHighlight: '#888',
+              boxHeight: 60,
+              boxWidth: 180
+            }
+          }}
+        />
+      </div>
       
       <div className="mt-6 print:mt-8">
         <p className="text-xs text-gray-500 print:text-gray-700">
