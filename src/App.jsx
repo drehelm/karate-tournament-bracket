@@ -318,153 +318,184 @@ export default function KarateTournamentBracket() {
 function BracketDisplay({ competitorCount, bracketData }) {
   const { rounds, totalSlots, matches } = bracketData;
   
-  // Generate bracket with a simpler reliable layout
   const renderBracket = () => {
-    const bracketRounds = [];
-    
-    // Fixed dimensions for matches and spacing
-    const matchWidth = 180;
+    // Standard sizes for consistent rendering
+    const columnWidth = 200;
     const matchHeight = 60;
-    const hSpacing = 60; // Horizontal spacing between rounds
-    const matchMargin = 20; // Initial vertical margin between matches
+    const matchWidth = 180;
+    const hSpacing = 40;
     
-    // Process each round
-    for (let round = 0; round < rounds; round++) {
-      const matchesInRound = totalSlots / Math.pow(2, round + 1);
-      const matchesInThisRound = [];
+    // Collection of JSX elements for each round
+    const bracketColumns = [];
+    
+    // Prepare data structure for the entire bracket
+    const bracketData = [];
+    
+    // Initialize structure with empty slots
+    for (let r = 0; r < rounds; r++) {
+      const matchesInRound = totalSlots / Math.pow(2, r + 1);
+      const roundMatches = [];
       
-      // Calculate vertical margin that doubles with each round
-      const vMargin = matchMargin * Math.pow(2, round);
-      
-      // Generate match entries for this round
-      for (let i = 0; i < matchesInRound; i++) {
-        if (round === 0) {
-          // First round uses match data to display byes
-          const match = matches[i];
-          matchesInThisRound.push(
-            <div 
-              key={`r${round}-m${i}`} 
-              className="match relative"
-              style={{ marginBottom: i < matchesInRound - 1 ? vMargin : 0 }}
-            >
-              <div className="match-box border rounded-md p-2 bg-white shadow-sm" 
-                style={{ width: matchWidth, height: matchHeight }}
-              >
-                <div className="competitor-slot border-b p-1">
-                  <div className="competitor-name text-sm">
-                    {match.hasBye ? "BYE" : "_________________"}
-                  </div>
-                </div>
-                <div className="competitor-slot p-1">
-                  <div className="competitor-name text-sm">
-                    {match.hasBye ? "_________________" : "_________________"}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Connector line to next round */}
-              {round < rounds - 1 && (
-                <div className="h-connector" style={{ 
-                  position: 'absolute',
-                  height: '2px',
-                  backgroundColor: '#666',
-                  width: hSpacing,
-                  top: matchHeight / 2,
-                  left: matchWidth
-                }}></div>
-              )}
-            </div>
-          );
-        } else {
-          // Later rounds
-          matchesInThisRound.push(
-            <div 
-              key={`r${round}-m${i}`} 
-              className="match relative"
-              style={{ marginBottom: i < matchesInRound - 1 ? vMargin * 2 + matchHeight : 0 }}
-            >
-              <div className="match-box border rounded-md p-2 bg-white shadow-sm" 
-                style={{ width: matchWidth, height: matchHeight }}
-              >
-                <div className="competitor-slot border-b p-1">
-                  <div className="competitor-name text-sm">_________________</div>
-                </div>
-                <div className="competitor-slot p-1">
-                  <div className="competitor-name text-sm">_________________</div>
-                </div>
-              </div>
-              
-              {/* Connector to next round */}
-              {round < rounds - 1 && (
-                <div className="h-connector" style={{ 
-                  position: 'absolute',
-                  height: '2px',
-                  backgroundColor: '#666',
-                  width: hSpacing,
-                  top: matchHeight / 2,
-                  left: matchWidth
-                }}></div>
-              )}
-              
-              {/* Vertical connectors from previous round */}
-              {round > 0 && (
-                <div className="v-connector-wrapper" style={{ position: 'absolute', left: -hSpacing, top: 0 }}>
-                  <div className="v-connector-top" style={{ 
-                    position: 'absolute',
-                    width: '2px',
-                    backgroundColor: '#666',
-                    height: matchHeight / 2,
-                    top: -vMargin / 2,
-                    left: hSpacing / 2
-                  }}></div>
-                  <div className="v-connector-bottom" style={{ 
-                    position: 'absolute',
-                    width: '2px',
-                    backgroundColor: '#666',
-                    height: matchHeight / 2,
-                    top: matchHeight / 2,
-                    left: hSpacing / 2
-                  }}></div>
-                  <div className="v-connector-horizontal" style={{ 
-                    position: 'absolute',
-                    height: '2px',
-                    backgroundColor: '#666',
-                    width: hSpacing / 2,
-                    top: matchHeight / 2,
-                    left: hSpacing / 2
-                  }}></div>
-                </div>
-              )}
-            </div>
-          );
-        }
+      for (let m = 0; m < matchesInRound; m++) {
+        roundMatches.push({
+          round: r,
+          position: m,
+          competitors: r === 0 
+            ? [(matches[m]?.hasBye ? "BYE" : "_________________"), "_________________"] 
+            : ["_________________", "_________________"]
+        });
       }
       
-      // Add the round to our bracket
-      bracketRounds.push(
-        <div key={`round-${round}`} className="round-column flex flex-col mr-6">
-          <div className="round-header text-center font-semibold mb-4">
-            {round === 0 ? "First Round" : 
-             round === rounds - 1 ? "Final" : 
-             `Round ${round + 1}`}
+      bracketData.push(roundMatches);
+    }
+    
+    // Calculate maximum height needed (based on first round which has most matches)
+    const firstRoundHeight = bracketData[0].length * (matchHeight + 20);
+    
+    // Render each round
+    for (let r = 0; r < rounds; r++) {
+      const roundMatches = [];
+      const matchesInThisRound = bracketData[r];
+      
+      // Calculate the space multiplier for this round
+      // This ensures proper alignment of matches as rounds progress
+      const spacingMultiplier = Math.pow(2, r);
+      
+      // Calculate spacing between matches in this round
+      const verticalSpacing = 20 * spacingMultiplier;
+      
+      for (let m = 0; m < matchesInThisRound.length; m++) {
+        const match = matchesInThisRound[m];
+        const isFirstRound = r === 0;
+        
+        // For non-first rounds, calculate vertical position to align with parent matches
+        const topPosition = isFirstRound 
+          ? m * (matchHeight + verticalSpacing)
+          : m * (matchHeight + verticalSpacing) * 2;
+        
+        roundMatches.push(
+          <div 
+            key={`match-${r}-${m}`} 
+            className="match-wrapper" 
+            style={{
+              position: 'absolute',
+              top: topPosition,
+              left: 0,
+              width: matchWidth,
+              height: matchHeight
+            }}
+          >
+            {/* Match box */}
+            <div 
+              className="match-box border border-gray-300 rounded shadow-sm bg-white"
+              style={{
+                width: matchWidth,
+                height: matchHeight,
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
+              <div className="competitor-top border-b border-gray-300 h-1/2 p-1 flex items-center">
+                <span className="text-sm truncate">{match.competitors[0]}</span>
+              </div>
+              <div className="competitor-bottom h-1/2 p-1 flex items-center">
+                <span className="text-sm truncate">{match.competitors[1]}</span>
+              </div>
+            </div>
+            
+            {/* Horizontal connector to next round (except for final round) */}
+            {r < rounds - 1 && (
+              <div 
+                className="connector-horizontal" 
+                style={{
+                  position: 'absolute',
+                  left: matchWidth,
+                  top: matchHeight / 2,
+                  width: hSpacing,
+                  height: 2,
+                  backgroundColor: '#888'
+                }}
+              />
+            )}
+            
+            {/* Vertical connector to parent match (except for first round) */}
+            {r > 0 && (
+              <>
+                <div 
+                  className="connector-vertical" 
+                  style={{
+                    position: 'absolute',
+                    left: -hSpacing / 2,
+                    top: -verticalSpacing,
+                    width: 2,
+                    height: verticalSpacing + matchHeight / 2,
+                    backgroundColor: '#888'
+                  }}
+                />
+                <div 
+                  className="connector-vertical-bottom" 
+                  style={{
+                    position: 'absolute',
+                    left: -hSpacing / 2,
+                    top: matchHeight / 2,
+                    width: 2,
+                    height: verticalSpacing,
+                    backgroundColor: '#888'
+                  }}
+                />
+                <div 
+                  className="connector-horizontal-left" 
+                  style={{
+                    position: 'absolute',
+                    left: -hSpacing / 2,
+                    top: matchHeight / 2,
+                    width: hSpacing / 2,
+                    height: 2,
+                    backgroundColor: '#888'
+                  }}
+                />
+              </>
+            )}
           </div>
-          <div className="matches flex flex-col justify-start">
-            {matchesInThisRound}
+        );
+      }
+      
+      const heightForThisRound = Math.max(
+        firstRoundHeight,
+        matchesInThisRound.length * (matchHeight + verticalSpacing) * (r > 0 ? 2 : 1)
+      );
+      
+      // Create column for this round
+      bracketColumns.push(
+        <div 
+          key={`round-${r}`} 
+          className="round-column relative"
+          style={{
+            width: columnWidth,
+            height: heightForThisRound,
+            flexShrink: 0
+          }}
+        >
+          <div className="round-title text-center font-semibold mb-6 mt-2">
+            {r === 0 ? "First Round" : r === rounds - 1 ? "Final" : `Round ${r + 1}`}
+          </div>
+          <div className="matches-container relative" style={{ height: 'calc(100% - 40px)' }}>
+            {roundMatches}
           </div>
         </div>
       );
     }
     
     return (
-      <div className="bracket-container flex overflow-x-auto py-6">
-        {bracketRounds}
+      <div className="bracket-container flex justify-start overflow-x-auto">
+        {bracketColumns}
       </div>
     );
   };
   
   return (
     <div className="bracket-wrapper">
-      <div className="mb-3 text-center">
+      <div className="mb-4 text-center">
         <h2 className="text-lg font-bold">Single Elimination Tournament</h2>
         <p className="text-sm text-gray-600 print:text-gray-800">
           {competitorCount} Competitors • {totalSlots - competitorCount} Byes • {rounds} Rounds
@@ -473,7 +504,7 @@ function BracketDisplay({ competitorCount, bracketData }) {
       
       {renderBracket()}
       
-      <div className="mt-4 print:mt-8">
+      <div className="mt-6 print:mt-8">
         <p className="text-xs text-gray-500 print:text-gray-700">
           Tournament Director: ______________________ Date: ____________
         </p>
