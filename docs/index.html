@@ -163,10 +163,171 @@
     </div>
   </div>
   
-  <script type="module">
-    // Import bracket generation code
-    import { validateCompetitors, generateSlots } from './bracket.js';
-    import { generateMermaidBracket } from './mermaid.js';
+  <script>
+    // ==========================================
+    // BRACKET GENERATION LOGIC
+    // ==========================================
+    
+    /**
+     * Validates the competitors array.
+     * 
+     * @param {Array<{seed: number, name: string}>} competitors - Array of competitors
+     * @throws {RangeError} If more than 20 competitors
+     * @throws {TypeError} If seeds are not unique or not 1...N
+     */
+    function validateCompetitors(competitors) {
+      if (competitors.length > 20) {
+        throw new RangeError("Division cap exceeded");
+      }
+      
+      // Check if seeds are unique and in range 1...N
+      const seeds = competitors.map(c => c.seed);
+      const uniqueSeeds = new Set(seeds);
+      
+      if (uniqueSeeds.size !== competitors.length) {
+        throw new TypeError("Seeds must be unique");
+      }
+      
+      for (const seed of seeds) {
+        if (!Number.isInteger(seed) || seed < 1 || seed > competitors.length) {
+          throw new TypeError(`Seeds must be integers from 1 to ${competitors.length}`);
+        }
+      }
+    }
+
+    /**
+     * Generates 32 slots with proper seeding, inserting BYEs where needed.
+     * 
+     * @param {Array<{seed: number, name: string}>} competitors - Array of competitors
+     * @returns {Array<{seed: number|null, name: string|null}>} - 32 slots with competitors or BYEs
+     */
+    function generateSlots(competitors) {
+      validateCompetitors(competitors);
+
+      // Standard 32-slot balanced seeding (bit-reverse order)
+      const seedOrder = [
+        1, 32, 16, 17, 8, 25, 9, 24, 4, 29, 13, 20, 5, 28, 12, 21,
+        2, 31, 15, 18, 7, 26, 10, 23, 3, 30, 14, 19, 6, 27, 11, 22
+      ];
+      
+      // Create a map of seed -> competitor for quick lookup
+      const competitorMap = new Map();
+      competitors.forEach(c => competitorMap.set(c.seed, c));
+      
+      // Generate slots based on the seeding order
+      const slots = seedOrder.map(seed => {
+        if (seed > competitors.length) {
+          // This is a BYE
+          return { seed: null, name: null };
+        } else {
+          const competitor = competitorMap.get(seed);
+          return { seed: competitor.seed, name: competitor.name };
+        }
+      });
+      
+      return slots;
+    }
+
+    /**
+     * Generates a Mermaid diagram string for a tournament bracket.
+     * 
+     * @param {Array<{seed: number, name: string}>} competitors - Array of competitors
+     * @param {Object} options - Optional configuration
+     * @param {boolean} options.showSeeds - Whether to show seed numbers in labels (default: true)
+     * @returns {string} - Mermaid diagram string for the tournament bracket
+     */
+    function generateMermaidBracket(competitors, options = { showSeeds: true }) {
+      validateCompetitors(competitors);
+      const slots = generateSlots(competitors);
+      
+      let diagramStr = "```mermaid\nflowchart LR\n";
+      
+      // Add styles for different node types
+      diagramStr += "classDef competitor fill:#f9f9f9,stroke:#333,stroke-width:1px,rx:4px,ry:4px\n";
+      diagramStr += "classDef bye fill:#f0f0f0,stroke:#999,stroke-width:1px,rx:4px,ry:4px,font-style:italic\n";
+      diagramStr += "classDef full-bye fill:#f0f0f0,stroke:#999,stroke-width:1px,rx:4px,ry:4px,font-style:italic,stroke-dasharray:5,5\n";
+      diagramStr += "classDef winner fill:#e6f7ff,stroke:#0066cc,stroke-width:2px,rx:4px,ry:4px,font-weight:bold\n";
+      
+      // Generate first round matches (16 matches, 32 slots)
+      const matchCount = 16;
+      const roundCount = 5; // log2(32) = 5 rounds
+      
+      // Create first round matches (R1)
+      for (let i = 0; i < matchCount; i++) {
+        const topSlot = slots[2 * i];
+        const bottomSlot = slots[2 * i + 1];
+        const matchId = `M${i + 1}`;
+        
+        // Format player labels with optional seeds
+        const formatPlayer = (slot) => {
+          if (slot.seed === null) return "BYE";
+          return options.showSeeds ? `[${slot.seed}] ${slot.name}` : slot.name;
+        };
+        
+        // Create match node - always create nodes for all matches
+        diagramStr += `${matchId}["${formatPlayer(topSlot)}<hr/>${formatPlayer(bottomSlot)}"]\n`;
+        
+        // Apply style based on content
+        if (topSlot.seed === null && bottomSlot.seed === null) {
+          // Full BYE match (both sides are BYEs)
+          diagramStr += `${matchId}:::full-bye\n`;
+        } else if (topSlot.seed === null || bottomSlot.seed === null) {
+          // Partial BYE (one side is a BYE)
+          diagramStr += `${matchId}:::bye\n`;
+        } else {
+          // Regular match (both competitors)
+          diagramStr += `${matchId}:::competitor\n`;
+        }
+      }
+      
+      // Create subsequent rounds (R2 to finals)
+      // Each round has half the matches of the previous round
+      for (let round = 2; round <= roundCount; round++) {
+        const matchesInRound = matchCount / Math.pow(2, round - 1);
+        
+        for (let i = 0; i < matchesInRound; i++) {
+          const matchId = `R${round}M${i + 1}`;
+          const roundName = round === roundCount ? "Final" : `Round ${round}`;
+          
+          // Create match node for this round
+          diagramStr += `${matchId}["${roundName}<hr/>Match ${i + 1}"]\n`;
+          diagramStr += `${matchId}:::competitor\n`;
+          
+          // Connect to previous round matches
+          const prevMatch1 = round === 2 ? `M${i*2 + 1}` : `R${round-1}M${i*2 + 1}`;
+          const prevMatch2 = round === 2 ? `M${i*2 + 2}` : `R${round-1}M${i*2 + 2}`;
+          
+          // Connect all matches, regardless of bye status
+          diagramStr += `${prevMatch1} --> ${matchId}\n`;
+          diagramStr += `${prevMatch2} --> ${matchId}\n`;
+        }
+      }
+      
+      // Close the mermaid syntax
+      diagramStr += "```";
+      
+      return diagramStr;
+    }
+
+    /**
+     * Complete bracket generator that returns both slots and mermaid diagram.
+     * 
+     * @param {Array<{seed: number, name: string}>} competitors - Array of competitors
+     * @param {Object} options - Optional configuration
+     * @param {boolean} options.showSeeds - Whether to show seed numbers in labels
+     * @returns {Object} - Object containing slots and mermaid diagram
+     */
+    function generateBracket(competitors, options = { showSeeds: true }) {
+      validateCompetitors(competitors);
+      const slots = generateSlots(competitors);
+      const mermaid = generateMermaidBracket(competitors, options);
+      
+      return { slots, mermaid };
+    }
+    
+    // ==========================================
+    // UI INTERACTION
+    // ==========================================
     
     // Initialize Mermaid
     mermaid.initialize({
@@ -192,7 +353,7 @@
     competitorCountInput.addEventListener('change', updateCompetitorList);
     
     // Generate bracket when button is clicked
-    generateBracketButton.addEventListener('click', generateBracket);
+    generateBracketButton.addEventListener('click', generateBracketUI);
     
     // Initialize with default competitors
     updateCompetitorList();
@@ -225,7 +386,7 @@
       }
     }
     
-    function generateBracket() {
+    function generateBracketUI() {
       try {
         // Collect competitor data
         const count = parseInt(competitorCountInput.value);
@@ -263,12 +424,21 @@
         // Render with Mermaid
         mermaid.render('bracket-diagram', diagramContent).then(({ svg }) => {
           diagramContainer.innerHTML = svg;
+        }).catch(error => {
+          console.error('Mermaid rendering error:', error);
+          diagramContainer.innerHTML = `<div style="color: red; padding: 20px;">Error rendering diagram: ${error.message}</div>`;
         });
       } catch (error) {
         console.error('Error generating bracket:', error);
         alert(`Error generating bracket: ${error.message}`);
       }
     }
+    
+    // Generate a default bracket on page load
+    document.addEventListener('DOMContentLoaded', function() {
+      // Generate after a short delay to ensure Mermaid is initialized
+      setTimeout(generateBracketUI, 500);
+    });
   </script>
 </body>
 </html>
