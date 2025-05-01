@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournament Bracket Tester</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+      padding: 0;
+    }
+    h1 {
+      color: navy;
+    }
+    .diagram-container {
+      margin: 20px 0;
+      border: 1px solid #ccc;
+      padding: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Simple Mermaid Bracket Test</h1>
+  <p>This is a minimal test page to check if Mermaid loads correctly.</p>
+  
+  <div class="diagram-container">
+    <pre class="mermaid">
+      flowchart LR
+        A["Player 1<hr/>Player 2"] --> C["Round 2<hr/>Match 1"]
+        B["Player 3<hr/>Player 4"] --> C
+        C --> D["Final<hr/>Match"]
+    </pre>
+  </div>
+  
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script>
+    // Simple initialization code
+    document.addEventListener("DOMContentLoaded", function() {
+      // Initialize mermaid
+      mermaid.initialize({
+        startOnLoad: true,
+        theme: 'default'
+      });
+      
+      console.log("Mermaid test page loaded and initialized");
+    });
+  </script>
+</body>
+</html>
