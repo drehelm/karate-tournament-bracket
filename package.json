@@ -11,8 +11,10 @@
     "deploy": "gh-pages -d build"
   },
   "dependencies": {
+    "@g-loot/react-tournament-brackets": "^1.0.31-rc",
     "html2canvas": "^1.4.1",
     "jspdf": "^2.5.1",
+    "mermaid": "^11.6.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "react-scripts": "^5.0.1"

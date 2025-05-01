@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tournament Bracket Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      line-height: 1.6;
+      color: #333;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    h1, h2, h3 {
+      color: #1a73e8;
+    }
+    
+    .container {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+      padding: 20px;
+      background-color: #f5f5f5;
+      border-radius: 8px;
+    }
+    
+    .controls h2 {
+      margin-top: 0;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+    
+    .competitor-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 10px;
+    }
+    
+    .competitor-entry {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .competitor-entry input {
+      width: 30px;
+      text-align: center;
+    }
+    
+    .competitor-entry input[type="text"] {
+      flex-grow: 1;
+      width: auto;
+      text-align: left;
+    }
+    
+    button {
+      background-color: #1a73e8;
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+    }
+    
+    button:hover {
+      background-color: #1557b0;
+    }
+    
+    .output {
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    
+    #diagram-container {
+      overflow-x: auto;
+      margin-top: 20px;
+    }
+    
+    pre {
+      white-space: pre-wrap;
+      background-color: #f0f0f0;
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    
+    /* Custom Mermaid styling */
+    .champion rect {
+      fill: #e6f7ff !important;
+      stroke: #0066cc !important;
+      stroke-width: 3px !important;
+    }
+    
+    .bye rect {
+      fill: #f0f0f0;
+      stroke: #999;
+      stroke-width: 1px;
+      stroke-dasharray: 5,5;
+    }
+    
+    .full-bye rect {
+      fill: #f0f0f0;
+      stroke: #999;
+      stroke-width: 1px;
+      stroke-dasharray: 5,5;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tournament Bracket Generator</h1>
+  
+  <div class="container">
+    <div class="controls">
+      <h2>Configure Tournament</h2>
+      
+      <div class="form-group">
+        <label for="competitor-count">Number of Competitors (2-20):</label>
+        <input type="number" id="competitor-count" min="2" max="20" value="8">
+      </div>
+      
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="show-seeds" checked>
+          Show seed numbers in brackets
+        </label>
+      </div>
+      
+      <div class="form-group">
+        <label>Competitors:</label>
+        <div id="competitor-list" class="competitor-list"></div>
+      </div>
+      
+      <div class="form-group">
+        <button id="generate-bracket">Generate Bracket</button>
+      </div>
+    </div>
+    
+    <div class="output">
+      <h2>Generated Bracket</h2>
+      <div id="diagram-container"></div>
+      
+      <h3>Mermaid Syntax</h3>
+      <pre id="mermaid-output"></pre>
+    </div>
+  </div>
+  
+  <script type="module">
+    // Import bracket generation code
+    import { validateCompetitors, generateSlots } from './bracket.js';
+    import { generateMermaidBracket } from './mermaid.js';
+    
+    // Initialize Mermaid
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'default',
+      flowchart: {
+        useMaxWidth: false,
+        htmlLabels: true,
+        curve: 'basis'
+      },
+      securityLevel: 'loose'
+    });
+    
+    // Elements
+    const competitorCountInput = document.getElementById('competitor-count');
+    const showSeedsCheckbox = document.getElementById('show-seeds');
+    const competitorListContainer = document.getElementById('competitor-list');
+    const generateBracketButton = document.getElementById('generate-bracket');
+    const diagramContainer = document.getElementById('diagram-container');
+    const mermaidOutput = document.getElementById('mermaid-output');
+    
+    // Update competitor list when count changes
+    competitorCountInput.addEventListener('change', updateCompetitorList);
+    
+    // Generate bracket when button is clicked
+    generateBracketButton.addEventListener('click', generateBracket);
+    
+    // Initialize with default competitors
+    updateCompetitorList();
+    
+    function updateCompetitorList() {
+      const count = parseInt(competitorCountInput.value) || 8;
+      competitorCountInput.value = Math.min(Math.max(count, 2), 20); // Enforce limits
+      
+      competitorListContainer.innerHTML = '';
+      
+      for (let i = 0; i < count; i++) {
+        const competitorEntry = document.createElement('div');
+        competitorEntry.className = 'competitor-entry';
+        
+        const seedInput = document.createElement('input');
+        seedInput.type = 'number';
+        seedInput.min = '1';
+        seedInput.max = count.toString();
+        seedInput.value = (i + 1).toString();
+        seedInput.id = `seed-${i}`;
+        
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.value = `Player ${i + 1}`;
+        nameInput.id = `name-${i}`;
+        
+        competitorEntry.appendChild(seedInput);
+        competitorEntry.appendChild(nameInput);
+        competitorListContainer.appendChild(competitorEntry);
+      }
+    }
+    
+    function generateBracket() {
+      try {
+        // Collect competitor data
+        const count = parseInt(competitorCountInput.value);
+        const competitors = [];
+        
+        for (let i = 0; i < count; i++) {
+          const seedInput = document.getElementById(`seed-${i}`);
+          const nameInput = document.getElementById(`name-${i}`);
+          
+          competitors.push({
+            seed: parseInt(seedInput.value),
+            name: nameInput.value || `Player ${i + 1}`
+          });
+        }
+        
+        // Validate competitors
+        try {
+          validateCompetitors(competitors);
+        } catch (error) {
+          alert(error.message);
+          return;
+        }
+        
+        // Generate the bracket
+        const showSeeds = showSeedsCheckbox.checked;
+        const mermaidString = generateMermaidBracket(competitors, { showSeeds });
+        
+        // Display the Mermaid syntax
+        mermaidOutput.textContent = mermaidString;
+        
+        // Render the diagram
+        const diagramContent = mermaidString.replace(/```mermaid\n|\n```/g, '');
+        diagramContainer.innerHTML = `<div class="mermaid">${diagramContent}</div>`;
+        
+        // Render with Mermaid
+        mermaid.render('bracket-diagram', diagramContent).then(({ svg }) => {
+          diagramContainer.innerHTML = svg;
+        });
+      } catch (error) {
+        console.error('Error generating bracket:', error);
+        alert(`Error generating bracket: ${error.message}`);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{
+  "name": "tournament-bracket-generator",
+  "version": "1.0.0",
+  "description": "A tournament bracket generator with Mermaid diagram support",
+  "main": "mermaid.js",
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js"
+  },
+  "keywords": [
+    "tournament",
+    "bracket",
+    "mermaid",
+    "seeding",
+    "elimination"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/preset-env": "^7.24.0",
+    "jest": "^29.7.0"
+  },
+  "jest": {
+    "transform": {},
+    "extensionsToTreatAsEsm": [".js"],
+    "moduleNameMapper": {
+      "^(\\.{1,2}/.*)\\.js$": "$1"
+    },
+    "testEnvironment": "node"
+  }
+}
